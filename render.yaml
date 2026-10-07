@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: quiz-bot
+    runtime: static
+    staticPublishPath: .
+    headers:
+      - path: /js/*
+        name: Cache-Control
+        value: public, max-age=3600, stale-while-revalidate=86400
+      - path: /css/*
+        name: Cache-Control
+        value: public, max-age=3600, stale-while-revalidate=86400

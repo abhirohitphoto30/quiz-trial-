@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Bot Simulator</title>
+    <!-- Speed: open connections to CDNs early -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://www.gstatic.com">
+    <link rel="dns-prefetch" href="https://unpkg.com">
+    <!-- Google Fonts & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <!-- App styles (split from the old single <style> block, same order) -->
+    <link rel="stylesheet" href="css/01-base-layout.css">
+    <link rel="stylesheet" href="css/02-chat-effects-modals.css">
+    <link rel="stylesheet" href="css/03-quiz-cards-inputs.css">
+    <link rel="stylesheet" href="css/04-converter-groups-lifelines.css">
+    <link rel="stylesheet" href="css/05-keyboard-hud.css">
+</head>
+<body class="theme-anime">
+    <div id="app">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-top">
+                <div class="sidebar-header">
+                    <i class="fa-brands fa-telegram"></i>
+                    <h2>Bot Command Console</h2>
+                </div>
+
+                <!-- Firebase User Profile Card -->
+                <div id="user-profile-card" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 12px; border-radius: 12px; margin: 0 5px 15px 5px; text-align: center; flex-shrink: 0;">
+                    <div style="display: flex; align-items: center; gap: 10px; text-align: left; margin-bottom: 8px;">
+                        <div id="user-avatar" style="width: 36px; height: 36px; border-radius: 50%; background: var(--bubble-user); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: bold;">👤</div>
+                        <div style="flex: 1; overflow: hidden;">
+                            <h4 id="user-profile-name" style="font-size: 0.85rem; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Guest User</h4>
+                            <p id="user-profile-status" style="font-size: 0.72rem; color: var(--text-muted);">Local Mode (Offline)</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; margin-top: 10px;">
+                        <button class="menu-btn" id="auth-action-btn" style="flex: 1; padding: 6px 8px; font-size: 0.78rem; justify-content: center; font-weight: bold; background: linear-gradient(135deg, var(--telegram-blue), #50a2e3);" onclick="openAuthModal()"><i class="fa-solid fa-right-to-bracket"></i> Login / Register</button>
+                    </div>
+                </div>
+
+                <div class="sidebar-menu">
+                    <div class="sidebar-section-title">👥 Telegram Groups</div>
+                    <div id="group-sidebar-controls">
+                        <button class="menu-btn" style="width: 100%;" onclick="openCreateGroupModal()"><i class="fa-solid fa-users"></i> Create Group</button>
+                        <div id="persisted-groups-list" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;"></div>
+                    </div>
+                    <div id="group-active-info" style="display: none; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+                        <p style="font-size: 0.85rem; font-weight: bold; color: var(--telegram-blue);" id="sidebar-group-name">Group Name</p>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px;" id="sidebar-group-members-count">0 members online</p>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="menu-btn" style="flex: 1; padding: 4px 8px; font-size: 0.7rem; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="copyGroupInviteLink()"><i class="fa-solid fa-copy"></i> Link</button>
+                            <button class="menu-btn" style="flex: 1; padding: 4px 8px; font-size: 0.7rem; color: var(--danger); display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="leaveCurrentGroup()"><i class="fa-solid fa-right-from-bracket"></i> Leave</button>
+                        </div>
+                    </div>
+                    <div id="group-members-list-section" style="display: none; margin-top: 10px; max-height: 150px; overflow-y: auto;">
+                        <div class="sidebar-section-title" style="border: none; padding-left: 0; margin-top: 5px;">Leaderboard / Members</div>
+                        <ul id="group-members-ul" style="list-style: none; padding-left: 5px; font-size: 0.75rem; display: flex; flex-direction: column; gap: 6px;">
+                        </ul>
+                    </div>
+
+                    <div class="sidebar-section-title">📂 Main Commands</div>
+                    <button class="menu-btn" onclick="sendMenuCommand('/start')"><i class="fa-solid fa-play"></i> /start</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/create')"><i class="fa-solid fa-plus"></i> /create</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/myquizzes')"><i class="fa-solid fa-list"></i> /myquizzes</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/done')"><i class="fa-solid fa-floppy-disk"></i> /done</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/cancel')"><i class="fa-solid fa-xmark"></i> /cancel</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/stop')"><i class="fa-solid fa-stop"></i> /stop</button>
+
+                    <div class="sidebar-section-title">🎮 Quiz Playback</div>
+                    <button class="menu-btn" onclick="sendMenuCommand('/quiz')"><i class="fa-solid fa-gamepad"></i> /quiz</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/stop')"><i class="fa-solid fa-stop"></i> /stop</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/pause')"><i class="fa-solid fa-pause"></i> /pause</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/resume')"><i class="fa-solid fa-play-pause"></i> /resume</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/skip')"><i class="fa-solid fa-angles-right"></i> /skip</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/slow')"><i class="fa-solid fa-arrow-down-long"></i> /slow</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/fast')"><i class="fa-solid fa-bolt"></i> /fast</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/normal')"><i class="fa-solid fa-arrow-rotate-left"></i> /normal</button>
+
+                    <div class="sidebar-section-title">&#9889; Special Modes</div>
+                    <button class="menu-btn" onclick="sendMenuCommand('/revise')"><i class="fa-solid fa-rotate"></i> /revise</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/random 5')"><i class="fa-solid fa-stopwatch"></i> /random [x min]</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/survival')"><i class="fa-solid fa-heart"></i> /survival</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/marathon 20')"><i class="fa-solid fa-person-running"></i> /marathon [x]</button>
+                    <button class="menu-btn" onclick="document.getElementById('sched-modal').classList.add('active')"><i class="fa-solid fa-clock"></i> /timer [schedule]</button>
+
+                    <div class="sidebar-section-title">📤 Booklet Exports</div>
+                    <button class="menu-btn" onclick="sendMenuCommand('/html')"><i class="fa-solid fa-file-code"></i> /html [id]</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/pdf')"><i class="fa-solid fa-file-pdf"></i> /pdf [id]</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/video')"><i class="fa-solid fa-file-video"></i> /video [id]</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/mindmap')"><i class="fa-solid fa-network-wired"></i> /mindmap [id]</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/flashcard')"><i class="fa-solid fa-clone"></i> /flashcard [id]</button>
+
+                    <div class="sidebar-section-title">&#128202; Analysis &amp; Stats</div>
+                    <button class="menu-btn" onclick="sendMenuCommand('/stats')"><i class="fa-solid fa-chart-simple"></i> /stats</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/leaderboard')"><i class="fa-solid fa-trophy"></i> /leaderboard</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/result')"><i class="fa-solid fa-clipboard-check"></i> /result</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/compare')"><i class="fa-solid fa-users"></i> /compare</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/wrong')"><i class="fa-solid fa-circle-xmark"></i> /wrong [id]</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/correct')"><i class="fa-solid fa-circle-check"></i> /correct [id]</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/features')"><i class="fa-solid fa-star"></i> /features</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/help')"><i class="fa-solid fa-circle-question"></i> /help</button>
+
+                    <div class="sidebar-section-title">🛠️ Administration</div>
+                    <button class="menu-btn" onclick="sendMenuCommand('/edit')"><i class="fa-solid fa-pen-to-square"></i> /edit</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/del')"><i class="fa-solid fa-trash-can"></i> /del</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/check')"><i class="fa-solid fa-heart-pulse"></i> /check</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/cleanup')"><i class="fa-solid fa-broom"></i> /cleanup</button>
+
+                    <div class="sidebar-section-title">📄 PDF Converters</div>
+                    <button class="menu-btn" onclick="sendMenuCommand('/vajiram')"><i class="fa-solid fa-file-pdf"></i> /vajiram</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/vision')"><i class="fa-solid fa-file-pdf"></i> /vision</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/sfg')"><i class="fa-solid fa-file-pdf"></i> /sfg</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/pw')"><i class="fa-solid fa-file-pdf"></i> /pw</button>
+
+                    <div class="sidebar-section-title">💳 Paid Quizzes</div>
+                    <button class="menu-btn" onclick="sendMenuCommand('/add')"><i class="fa-solid fa-user-plus"></i> /add</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/rem')"><i class="fa-solid fa-user-minus"></i> /rem</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/remall')"><i class="fa-solid fa-user-slash"></i> /remall</button>
+
+                    <div class="sidebar-section-title">🎨 Settings & Themes</div>
+                    <button class="menu-btn" onclick="sendMenuCommand('/settings')"><i class="fa-solid fa-gear"></i> /settings</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/theme anime')"><i class="fa-solid fa-fire"></i> Anime Theme</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+        <!-- Main Chat Area -->
+        <div class="chat-area">
+            <!-- Header -->
+            <div class="chat-header">
+                <div class="bot-profile">
+                    <button class="hamburger-btn" onclick="toggleMobileSidebar()" aria-label="Toggle Sidebar Menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div class="bot-avatar">🤖</div>
+                    <div class="bot-info">
+                        <h3>Advance Quiz Bot</h3>
+                        <p id="bot-status-subtext">bot (simulated)</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 15px; z-index: 11;">
+                    <!-- TTS Controls -->
+                    <div class="tts-controls" style="display: flex; gap: 10px; font-size: 0.72rem; color: var(--text-muted); background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 6px 10px; border-radius: 8px; align-items: center;">
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="tts-read-q" style="accent-color: var(--telegram-blue);"> <i class="fa-solid fa-volume-high"></i> <span>Read Q</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="tts-read-exp" style="accent-color: var(--telegram-blue);"> <i class="fa-solid fa-comment-dots"></i> <span>Read Exp</span>
+                        </label>
+                        <div style="width: 1px; height: 16px; background: var(--glass-border);"></div>
+                        <button id="sound-toggle-btn" onclick="AudioEngine.toggleMute()" class="input-icon-btn" title="Sound On — Click to Mute" style="font-size: 1rem; padding: 0 2px;">
+                            <i class="fa-solid fa-volume-high"></i>
+                        </button>
+                        <button id="kbd-hud-toggle-btn" onclick="toggleKbdHud()" class="input-icon-btn" title="Keyboard Shortcuts" style="font-size: 0.95rem; padding: 0 2px; color: var(--text-muted);">
+                            <i class="fa-solid fa-keyboard"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="sticky-stats-bar" id="sticky-stats-bar">
+                        <div class="mini-stat" style="color: var(--success);"><i class="fa-solid fa-circle-check"></i> Score: <span id="hdr-score">0.00</span></div>
+                        <div class="mini-stat" style="color: var(--gold);"><i class="fa-solid fa-fire"></i> Streak: <span id="hdr-streak">0</span></div>
+                        <div class="mini-stat" style="color: var(--telegram-blue);"><i class="fa-solid fa-clock"></i> <span id="hdr-timer">00:30</span></div>
+                        
+                        <!-- Lifelines Separator and Buttons -->
+                        <div style="border-left: 1px solid var(--glass-border); height: 20px; margin: 0 5px;"></div>
+                        <div class="lifeline-buttons" style="display: flex; gap: 6px;">
+                            <button class="menu-btn" id="ll-5050" onclick="useLifeline('5050')" style="padding: 4px 8px; font-size: 0.72rem; border-radius: 6px; background: rgba(36, 129, 204, 0.15); border: 1px solid rgba(36, 129, 204, 0.3);" title="50:50 Lifeline">🌓 50:50</button>
+                            <button class="menu-btn" id="ll-poll" onclick="useLifeline('poll')" style="padding: 4px 8px; font-size: 0.72rem; border-radius: 6px; background: rgba(79, 174, 94, 0.15); border: 1px solid rgba(79, 174, 94, 0.3);" title="Audience Poll">📊 Poll</button>
+                            <button class="menu-btn" id="ll-double" onclick="useLifeline('double')" style="padding: 4px 8px; font-size: 0.72rem; border-radius: 6px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3);" title="Double Dip">2️⃣ Double</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Viewport Wrapper -->
+            <div style="flex-grow: 1; position: relative; overflow: hidden; display: flex; flex-direction: column;">
+                <video id="chat-video-bg" autoplay loop muted playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; pointer-events: none; display: none;"></video>
+                <!-- Special mode bar (Blitz / Survival) inside chat area -->
+                <div id="special-mode-bar" style="display:none;align-items:center;gap:12px;background:rgba(245,158,11,0.12);border-bottom:1px solid rgba(245,158,11,0.3);padding:8px 16px;z-index:2;position:relative;">
+                    <span class="smb-label" id="smb-label">&#9889; BLITZ</span>
+                    <span class="smb-val" id="smb-val">5:00</span>
+                    <span class="smb-lives" id="smb-lives"></span>
+                </div>
+                <!-- Chat Message Feed -->
+                <div class="chat-history" id="chat-history" style="flex:1;position:relative;overflow-y:auto;overflow-x:hidden;">
+                    <div class="chat-message bot">
+                        <div class="message-bubble">
+                            <strong>Telegram Quiz Bot 🤖</strong><br>
+                            Welcome! I am your interactive Telegram Quiz Bot. You can create, manage, and play gamified quizzes directly here.<br><br>
+                            Type <strong>/help</strong> to see all available commands or use the shortcut buttons below!
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input / Command Area -->
+            <div class="chat-input-area">
+                <div class="input-bar">
+                    <input type="text" id="chat-input" placeholder="Type a command or message..." onkeydown="if(event.key==='Enter') sendMessage()">
+                    <button class="input-icon-btn" onclick="sendMessage()" title="Send">
+                        <i class="fa-solid fa-paper-plane" style="color: var(--telegram-blue);"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Overlay Setup Config Modal -->
+            <div class="overlay-modal" id="config-modal">
+                <div class="config-card">
+                    <h2>Quiz Setup ⚡</h2>
+                    <p id="config-quiz-title">Configure your challenge parameters</p>
+                    <div class="form-group">
+                        <label for="timer-sec" style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block; text-align: left;">Time per Question (Seconds)</label>
+                        <input type="number" id="timer-sec" value="30" min="5">
+                    </div>
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label for="marks-positive" style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block; text-align: left;">Correct Answer Reward</label>
+                        <input type="number" id="marks-positive" value="2" step="0.5">
+                    </div>
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label for="marks-negative" style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block; text-align: left;">Negative Marking Penalty</label>
+                        <input type="number" id="marks-negative" value="0.66" step="0.01">
+                    </div>
+                    <button class="primary-btn" onclick="submitQuizConfig()" style="margin-top: 25px; background: linear-gradient(135deg, var(--success), #2ecc71);">
+                        Deploy Quiz <i class="fa-solid fa-play"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Create Group Modal -->
+            <div class="overlay-modal" id="create-group-modal">
+                <div class="config-card">
+                    <h2>Create Group 👥</h2>
+                    <p>Start a new group to invite your friends and play live quizzes</p>
+                    <div style="margin-top: 15px; text-align: left;">
+                        <label for="group-name-input" style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Group Name</label>
+                        <input type="text" id="group-name-input" placeholder="e.g., UPSC Aspirants Live">
+                    </div>
+                    <div style="margin-top: 15px; text-align: left;">
+                        <label for="group-nickname-input" style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Your Nickname</label>
+                        <input type="text" id="group-nickname-input" placeholder="e.g., Admin">
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 25px;">
+                        <button class="primary-btn" onclick="closeCreateGroupModal()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); flex: 1;">Cancel</button>
+                        <button class="primary-btn" onclick="submitCreateGroup()" style="background: linear-gradient(135deg, var(--telegram-blue), #50a2e3); flex: 1;">Create Group</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Join Group Modal -->
+            <div class="overlay-modal" id="join-group-modal">
+                <div class="config-card">
+                    <h2>Join Group 👥</h2>
+                    <p id="join-group-prompt-text">You have been invited to join a group</p>
+                    <div style="margin-top: 15px; text-align: left;">
+                        <label for="join-nickname-input" style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Choose your Nickname</label>
+                        <input type="text" id="join-nickname-input" placeholder="e.g., Rohan">
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 25px;">
+                        <button class="primary-btn" onclick="closeJoinGroupModal()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); flex: 1;">Cancel</button>
+                        <button class="primary-btn" onclick="submitJoinGroup()" style="background: linear-gradient(135deg, var(--success), #2ecc71); flex: 1;">Join Group</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Authentication Modal (Login / Sign Up) -->
+            <div class="overlay-modal" id="auth-modal">
+                <div class="config-card" style="max-width: 400px;">
+                    <h2 id="auth-modal-title">Cloud Login ☁️</h2>
+                    <p id="auth-modal-desc" style="margin-bottom: 20px;">Access your quizzes and persistent groups from any device</p>
+                    
+                    <div style="margin-top: 15px; text-align: left;">
+                        <label for="auth-email-input" style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Email Address</label>
+                        <input type="text" id="auth-email-input" placeholder="e.g., student@example.com">
+                    </div>
+                    
+                    <div style="margin-top: 15px; text-align: left;">
+                        <label for="auth-password-input" style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Password</label>
+                        <input type="password" id="auth-password-input" placeholder="Minimum 6 characters" style="width: 100%; padding: 12px 16px; margin-top: 6px; border-radius: 10px; border: 1px solid var(--glass-border); background: #141f29; color: white; font-size: 0.95rem; outline: none; transition: all 0.2s;">
+                    </div>
+                    
+                    <div id="auth-nickname-group" style="margin-top: 15px; text-align: left; display: none;">
+                        <label for="auth-nickname-input" style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Choose a Nickname</label>
+                        <input type="text" id="auth-nickname-input" placeholder="e.g., QuizMaster99">
+                    </div>
+                    
+                    <div style="margin-top: 10px; text-align: right;">
+                        <a href="#" id="auth-toggle-link" style="color: var(--telegram-blue); font-size: 0.78rem; text-decoration: none; font-weight: 600;" onclick="toggleAuthMode(event)">Don't have an account? Sign Up</a>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 25px;">
+                        <button class="primary-btn" onclick="closeAuthModal()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); flex: 1;">Cancel</button>
+                        <button class="primary-btn" id="auth-submit-btn" onclick="submitAuthForm()" style="background: linear-gradient(135deg, var(--telegram-blue), #50a2e3); flex: 1;">Log In</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Database Settings Modal -->
+            <div class="overlay-modal" id="settings-modal">
+                <div class="config-card" style="max-width: 500px; text-align: left;">
+                    <h2 style="text-align: center; color: var(--telegram-blue); margin-bottom: 10px;">⚙️ Database Settings</h2>
+                    <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Connect your free Firebase Database to unlock Cloud Sync and persistent groups</p>
+                    
+                    <div style="margin-top: 15px;">
+                        <label for="settings-config-input" style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Firebase Config JSON</label>
+                        <textarea id="settings-config-input" placeholder='Paste your Firebase config object here, e.g.:&#10;{&#10;  "apiKey": "...",&#10;  "authDomain": "...",&#10;  "databaseURL": "...",&#10;  "projectId": "..."&#10;}' style="width: 100%; height: 180px; padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border); background: #141f29; color: white; font-family: monospace; font-size: 0.80rem; outline: none; resize: none; transition: all 0.2s;"></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 15px; background: rgba(36, 129, 204, 0.05); border: 1px solid rgba(36, 129, 204, 0.2); border-radius: 10px; padding: 12px; font-size: 0.78rem; line-height: 1.5; color: #8cb6d9;">
+                        <strong>How to get this Config JSON for free:</strong><br>
+                        1. Go to <a href="https://console.firebase.google.com/" target="_blank" style="color: var(--telegram-blue); text-decoration: underline;">Firebase Console</a> & create a free project.<br>
+                        2. Click <strong>Add Web App</strong>, copy the generated config object, and paste it above.<br>
+                        3. Enable <strong>Email/Password sign-in</strong> under Authentication.<br>
+                        4. Create a <strong>Realtime Database</strong> under build settings.
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 25px;">
+                        <button class="primary-btn" onclick="closeSettingsModal()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); flex: 1;">Cancel</button>
+                        <button class="primary-btn" onclick="submitSettingsForm()" style="background: linear-gradient(135deg, var(--success), #2ecc71); flex: 1;">Save & Initialize</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wallpaper Customization Modal -->
+            <div class="overlay-modal" id="wallpaper-modal">
+                <div class="config-card" style="max-width: 500px; text-align: left;">
+                    <h2 style="text-align: center; color: var(--telegram-blue); margin-bottom: 10px;">🎨 Chat Wallpapers</h2>
+                    <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Choose a background style for the chat window or upload your own</p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-height: 250px; overflow-y: auto; padding: 5px;">
+                        <!-- Presets (Solid colors) -->
+                        <div class="wallpaper-item" onclick="setChatWallpaper('solid-dark')" style="height: 60px; background: #141f29; border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white;">Dark 🖤</div>
+                        <div class="wallpaper-item" onclick="setChatWallpaper('solid-charcoal')" style="height: 60px; background: #1e2833; border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white;">Charcoal 🩶</div>
+                        <div class="wallpaper-item" onclick="setChatWallpaper('solid-navy')" style="height: 60px; background: #0f1c2e; border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white;">Navy 💙</div>
+                        
+                        <!-- Gradients -->
+                        <div class="wallpaper-item" onclick="setChatWallpaper('grad-aurora')" style="height: 60px; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white;">Aurora 🌌</div>
+                        <div class="wallpaper-item" onclick="setChatWallpaper('grad-sunset')" style="height: 60px; background: linear-gradient(135deg, #4b1212, #6b2d2d, #141f29); border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white;">Sunset 🌇</div>
+                        <div class="wallpaper-item" onclick="setChatWallpaper('grad-telegram')" style="height: 60px; background: linear-gradient(135deg, #182533, #2b5278, #182533); border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white;">Telegram ✈️</div>
+                        
+                        <!-- Live Wallpapers -->
+                        <div class="wallpaper-item" onclick="setChatWallpaper('live-stars')" style="height: 60px; background: linear-gradient(135deg, #090a0f, #121526); border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white; overflow: hidden; position: relative;">Stars 🌠</div>
+                        <div class="wallpaper-item" onclick="setChatWallpaper('live-wave')" style="height: 60px; background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d); border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white; overflow: hidden; position: relative;">Wave 🌊</div>
+                        <div class="wallpaper-item" onclick="setChatWallpaper('pattern-telegram')" style="height: 60px; background: #0d0820; border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white; overflow: hidden; position: relative;">Pattern 🀄</div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; border-top: 1px solid var(--glass-border); padding-top: 15px; text-align: left;">
+                        <label style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Upload Custom Image / Video (MP4)</label>
+                        <input type="file" id="wallpaper-upload-input" accept="image/*,video/mp4" onchange="uploadCustomWallpaper(event)" style="display: none;">
+                        <button class="primary-btn" onclick="document.getElementById('wallpaper-upload-input').click()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); width: 100%;">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Upload From Device
+                        </button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 25px;">
+                        <button class="primary-btn" onclick="closeWallpaperModal()" style="background: linear-gradient(135deg, var(--telegram-blue), #50a2e3); flex: 1; text-align: center;">Close</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audience Poll Modal -->
+            <div class="overlay-modal" id="poll-modal">
+                <div class="config-card" style="max-width: 420px; text-align: left;">
+                    <h3 style="text-align: center; color: var(--telegram-blue); margin-bottom: 15px;"><i class="fa-solid fa-chart-bar"></i> Audience Poll Results</h3>
+                    <p style="text-align: center; color: var(--text-muted); font-size: 0.82rem; margin-bottom: 20px;">Percentage of other players choosing each option</p>
+                    <div id="poll-bars-container" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px;">
+                        <!-- Dynamic bars go here -->
+                    </div>
+                    <button class="primary-btn" onclick="closePollModal()" style="width: 100%; background: linear-gradient(135deg, var(--telegram-blue), #50a2e3);">Close Results</button>
+                </div>
+            </div>
+
+            <!-- Telegram Quiz Creator Modal -->
+            <div class="overlay-modal" id="quiz-creator-modal">
+                <div class="creator-card">
+                    <h3 style="color: var(--telegram-blue); border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-pen-to-square"></i> New Quiz Question
+                    </h3>
+                    
+                    <!-- Question Text -->
+                    <div class="creator-field">
+                        <label for="creator-q-text">Ask a question</label>
+                        <textarea id="creator-q-text" class="creator-input creator-textarea" placeholder="Enter question text..."></textarea>
+                    </div>
+
+                    <!-- Image Attachment -->
+                    <div class="creator-field">
+                        <label>Attach Image (Optional)</label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button class="menu-btn" onclick="document.getElementById('creator-file-input').click()" style="padding: 6px 12px; font-size: 0.8rem;">
+                                <i class="fa-solid fa-image"></i> Choose Image
+                            </button>
+                            <span id="creator-image-name" style="font-size: 0.8rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px;">No file chosen</span>
+                            <input type="file" id="creator-file-input" accept="image/*" style="display: none;" onchange="handleCreatorImageUpload(event)">
+                        </div>
+                        <div id="creator-image-preview-wrap" style="display: none;">
+                            <div class="image-preview-area">
+                                <img id="creator-image-preview" src="" alt="Preview">
+                                <button class="image-preview-remove" onclick="removeCreatorImage()">&times;</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Options List -->
+                    <div class="creator-field">
+                        <label>Options (Up to 10)</label>
+                        <div id="creator-options-container" style="display: flex; flex-direction: column; gap: 8px;">
+                            <!-- Option rows will be rendered here dynamically -->
+                        </div>
+                        <button class="menu-btn" id="creator-add-opt-btn" onclick="addCreatorOption()" style="margin-top: 8px; width: 100%; justify-content: center; background: rgba(255, 255, 255, 0.02);">
+                            <i class="fa-solid fa-plus"></i> Add an Option...
+                        </button>
+                    </div>
+
+                    <!-- Explanation -->
+                    <div class="creator-field">
+                        <label for="creator-q-explanation">Description / Explanation (Optional)</label>
+                        <textarea id="creator-q-explanation" class="creator-input creator-textarea" placeholder="Add an explanation that users will see when they select the wrong answer..."></textarea>
+                    </div>
+
+                    <!-- Footer Buttons -->
+                    <div style="display: flex; gap: 12px; margin-top: 10px; border-top: 1px solid var(--glass-border); padding-top: 15px;">
+                        <button class="primary-btn" onclick="saveCreatorQuestion()" style="flex: 1; background: linear-gradient(135deg, var(--telegram-blue), #50a2e3); font-weight: bold; padding: 10px 16px;">Create Question</button>
+                        <button class="menu-btn" onclick="closeQuizCreatorModal()" style="padding: 10px 16px; color: var(--danger); border-color: var(--danger); justify-content: center;">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Script Block containing Embedded Database -->
+
+    <!-- HUD markup (will be moved into .chat-area by JS) -->
+    <div id="kbd-hud">
+        <div class="hud-title"><i class="fa-solid fa-keyboard"></i> Keyboard Shortcuts</div>
+
+        <div class="hud-row">
+            <span class="hud-label">Answer A / B / C / D</span>
+            <span>
+                <span class="kbd-key" id="kkey-1">1</span>
+                <span class="kbd-key" id="kkey-2">2</span>
+                <span class="kbd-key" id="kkey-3">3</span>
+                <span class="kbd-key" id="kkey-4">4</span>
+            </span>
+        </div>
+
+        <div class="hud-divider"></div>
+
+        <div class="hud-row">
+            <span class="hud-label">Skip Question</span>
+            <span class="kbd-key" id="kkey-space">Space</span>
+        </div>
+        <div class="hud-row">
+            <span class="hud-label">Pause / Resume</span>
+            <span class="kbd-key" id="kkey-p">P</span>
+        </div>
+        <div class="hud-row">
+            <span class="hud-label">Stop Quiz</span>
+            <span class="kbd-key" id="kkey-esc">Esc</span>
+        </div>
+
+        <div class="hud-divider"></div>
+
+        <div class="hud-row">
+            <span class="hud-label">Mute / Unmute</span>
+            <span class="kbd-key" id="kkey-m">M</span>
+        </div>
+        <div class="hud-row">
+            <span class="hud-label">Toggle This HUD</span>
+            <span class="kbd-key" id="kkey-k">K</span>
+        </div>
+
+        <div class="hud-divider"></div>
+        <div style="font-size: 0.62rem; color: var(--text-muted); text-align: center; margin-top: 2px;">
+            ⚡ Keys active only during quiz
+        </div>
+    </div>
+
+    <!-- Toast notification element -->
+    <div id="kbd-toast"></div>
+
+    <!-- Live Particle Canvas -->
+    <canvas id="particle-canvas"></canvas>
+
+    <!-- Mega Win Overlay -->
+    <div id="mega-win-overlay">
+        <div class="mw-trophy">&#127942;</div>
+        <div class="mw-text" id="mw-title">Quiz Complete!</div>
+        <div class="mw-sub" id="mw-sub">Amazing performance!</div>
+    </div>
+
+    <!-- Stats Dashboard Panel -->
+    <div id="stats-panel">
+        <div class="stats-panel-header">
+            <h2>&#128202; Analytics Dashboard</h2>
+            <button class="stats-close-btn" onclick="closeStatsPanel()">&#10005;</button>
+        </div>
+        <div id="stats-panel-content"></div>
+    </div>
+
+    <!-- Schedule Modal -->
+    <div class="overlay-modal" id="sched-modal">
+        <div class="config-card sched-modal">
+            <h3 style="color:var(--telegram-blue);margin-bottom:14px;font-family:'Outfit',sans-serif;">&#9200; Schedule Quiz Auto-Start</h3>
+            <p style="color:var(--text-muted);font-size:0.83rem;margin-bottom:16px;">Set a quiz to auto-launch at a specific time (today).</p>
+            <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Quiz ID</label>
+            <input class="sched-input" id="sched-quiz-id" placeholder="e.g. 123456">
+            <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Time (24h HH:MM or 7PM)</label>
+            <input class="sched-input" id="sched-time-input" placeholder="e.g. 19:00 or 7PM">
+            <div id="sched-status"></div>
+            <div style="display:flex;gap:10px;margin-top:14px;">
+                <button class="primary-btn" onclick="confirmSchedule()" style="background:linear-gradient(135deg,var(--telegram-blue),#50a2e3);flex:1;">Set Schedule</button>
+                <button class="primary-btn" onclick="document.getElementById('sched-modal').classList.remove('active')" style="background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);flex:1;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shuffle Options Modal -->
+    <div class="overlay-modal" id="shuffle-modal">
+        <div class="config-card" style="max-width:380px;text-align:left;">
+            <h3 style="color:var(--telegram-blue);margin-bottom:8px;font-family:'Outfit',sans-serif;">&#128256; Shuffle Options</h3>
+            <p style="color:var(--text-muted);font-size:0.83rem;margin-bottom:16px;">How would you like to shuffle for this quiz?</p>
+            <button class="shuffle-opt-btn" onclick="applyShuffleAndStart('none')">No Shuffle - Keep original order</button>
+            <button class="shuffle-opt-btn" onclick="applyShuffleAndStart('questions')">Shuffle Questions only</button>
+            <button class="shuffle-opt-btn" onclick="applyShuffleAndStart('options')">Shuffle Options only</button>
+            <button class="shuffle-opt-btn" onclick="applyShuffleAndStart('both')">Shuffle Both Questions and Options</button>
+            <button class="shuffle-opt-btn" onclick="document.getElementById('shuffle-modal').classList.remove('active')" style="color:var(--danger);border-color:rgba(209,78,78,0.2);">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Embedded database (kept inline: "Export HTML" rewrites this block) -->
+    <script id="database-script">
+        // DATABASE_START
+        const EMBEDDED_QUIZZES = [];
+        // DATABASE_END
+    </script>
+
+    <!-- Third-party libraries: defer = never block the page from showing; run in order -->
+    <script defer src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script defer src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+
+    <!-- App code (split from the old single <script> block, same order) -->
+    <script defer src="js/00-template-loader.js"></script>
+    <script defer src="js/01-ui-shell.js"></script>
+    <script defer src="js/02-firebase-sync.js"></script>
+    <script defer src="js/03-group-sync.js"></script>
+    <script defer src="js/04-group-wallpaper-auth-settings.js"></script>
+    <script defer src="js/05-database-init.js"></script>
+    <script defer src="js/06-badges-voice.js"></script>
+    <script defer src="js/07-lifelines-and-state.js"></script>
+    <script defer src="js/08-audio-engine.js"></script>
+    <script defer src="js/09-chat-and-commands.js"></script>
+    <script defer src="js/10-quiz-creator.js"></script>
+    <script defer src="js/11-quiz-engine.js"></script>
+    <script defer src="js/12-quiz-file-parser.js"></script>
+    <script defer src="js/13-export-playable-html.js"></script>
+    <script defer src="js/14-export-pdf-report.js"></script>
+    <script defer src="js/15-pdf-helpers.js"></script>
+    <script defer src="js/16-flashcards-mindmaps.js"></script>
+    <script defer src="js/17-export-classroom.js"></script>
+    <script defer src="js/18-export-video-mindmap.js"></script>
+    <script defer src="js/19-premium-flashcards.js"></script>
+    <script defer src="js/20-export-site-and-pdf-converter.js"></script>
+    <script defer src="js/21-parser-vision.js"></script>
+    <script defer src="js/22-parser-vajiram.js"></script>
+    <script defer src="js/23-parser-sfg.js"></script>
+    <script defer src="js/24-parser-pw.js"></script>
+    <script defer src="js/30-keyboard-shortcuts.js"></script>
+    <script defer src="js/31-quiz-mode-patches.js"></script>
+    <script defer src="js/32-special-modes.js"></script>
+    <script defer src="js/33-stats-schedule-particles.js"></script>
+    <script defer src="js/34-text-to-mindmap-pdf.js"></script>
+</body>
+</html>
