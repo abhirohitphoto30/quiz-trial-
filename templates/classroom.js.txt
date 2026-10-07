@@ -1,0 +1,1061 @@
+
+    // State variables
+let mindmaps = [];
+let currentIndex = 0;
+let userAnswers = {}; // { questionIndex: selectedOptionIndex }
+let bookmarks = new Set();
+let visited = new Set();
+let isPlaying = false;
+let isAutoplay = true;
+let speed = 1.0;
+let currentVoiceName = "";
+let elapsedTime = 0;
+let timerInterval = null;
+
+// Speech Synthesis State
+let synth = window.speechSynthesis;
+let utterance = null;
+let speechQueue = [];
+let currentQueueIndex = 0;
+
+// UI Elements
+const questionListUl = document.getElementById("question-list-ul");
+const searchInput = document.getElementById("search-input");
+const filterButtons = document.querySelectorAll(".filter-btn");
+
+// Classroom / Teacher Elements
+const teacherAvatar = document.getElementById("teacher-avatar");
+const teacherBubble = document.getElementById("teacher-bubble");
+
+// Mindmap Elements
+const mindmapBoard = document.getElementById("mindmap-board");
+const mindmapSvg = document.getElementById("mindmap-svg");
+const mindmapCoreTitle = document.getElementById("mindmap-core-title");
+const nodeCentral = document.getElementById("node-central");
+
+const nodeB1 = document.getElementById("node-b1");
+const nodeB1Title = document.getElementById("node-b1-title");
+const nodeB1Desc = document.getElementById("node-b1-desc");
+
+const nodeB2 = document.getElementById("node-b2");
+const nodeB2Title = document.getElementById("node-b2-title");
+const nodeB2Desc = document.getElementById("node-b2-desc");
+
+const nodeB3 = document.getElementById("node-b3");
+const nodeB3Title = document.getElementById("node-b3-title");
+const nodeB3Desc = document.getElementById("node-b3-desc");
+
+const nodeB4 = document.getElementById("node-b4");
+const nodeB4Title = document.getElementById("node-b4-title");
+const nodeB4Desc = document.getElementById("node-b4-desc");
+
+const popQuizBtn = document.getElementById("pop-quiz-btn");
+
+// Quiz Overlay Elements
+const quizOverlay = document.getElementById("quiz-overlay");
+const quizCloseBtn = document.getElementById("quiz-close-btn");
+const quizQuestionText = document.getElementById("quiz-question-text");
+const quizStatements = document.getElementById("quiz-statements");
+const quizOptionsGrid = document.getElementById("quiz-options-grid");
+const quizExplanationBox = document.getElementById("quiz-explanation-box");
+const quizExplanationText = document.getElementById("quiz-explanation-text");
+
+// Notes Elements
+const studentNotesCard = document.getElementById("student-notes-card");
+const studentNotesTextarea = document.getElementById("student-notes-textarea");
+
+// Soundwave Visualizer Canvas
+const canvas = document.getElementById("soundwave-canvas");
+const ctx = canvas ? canvas.getContext("2d") : null;
+let visualizerAnimation = null;
+let wavePhase = 0;
+
+// Confetti Canvas
+const confettiCanvas = document.getElementById("confetti-canvas");
+const confettiCtx = confettiCanvas.getContext("2d");
+let confettiParticles = [];
+let confettiAnimation = null;
+
+// Player Controls
+const playBtn = document.getElementById("play-btn");
+const prevBtn = document.getElementById("prev-btn");
+const nextBtn = document.getElementById("next-btn");
+const muteBtn = document.getElementById("mute-btn");
+const volumeSlider = document.getElementById("volume-slider");
+const speedSelect = document.getElementById("speed-select");
+const voiceSelect = document.getElementById("voice-select");
+const autoplayToggle = document.getElementById("autoplay-toggle");
+const bookmarkToggleBtn = document.getElementById("bookmark-toggle-btn");
+
+const progressSliderTrack = document.getElementById("progress-slider-track");
+const progressSliderFill = document.getElementById("progress-slider-fill");
+const progressSliderHandle = document.getElementById("progress-slider-handle");
+const currentSpeechTime = document.getElementById("current-speech-time");
+const totalSpeechTime = document.getElementById("total-speech-time");
+
+const headerProgressText = document.getElementById("header-progress-text");
+const headerProgressBar = document.getElementById("header-progress-bar");
+const headerScoreText = document.getElementById("header-score-text");
+const headerTimerText = document.getElementById("header-timer-text");
+
+// Web Audio API Synthesizer Context
+let audioCtx = null;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+function playAudioBeep(type) {
+    try {
+        initAudio();
+        if (!audioCtx) return;
+        
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        const now = audioCtx.currentTime;
+        
+        if (type === "correct") {
+            // High double bell chime
+            osc.frequency.setValueAtTime(523.25, now); // C5
+            gain.gain.setValueAtTime(0.12, now);
+            osc.start(now);
+            osc.stop(now + 0.1);
+            
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.connect(gain2);
+            gain2.connect(audioCtx.destination);
+            osc2.frequency.setValueAtTime(659.25, now + 0.12); // E5
+            gain2.gain.setValueAtTime(0.12, now + 0.12);
+            osc2.start(now + 0.12);
+            osc2.stop(now + 0.35);
+        } else if (type === "incorrect") {
+            // Low sad sliding buzz
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(220, now);
+            osc.frequency.exponentialRampToValueAtTime(130, now + 0.35);
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.35);
+            osc.start(now);
+            osc.stop(now + 0.35);
+        } else if (type === "click") {
+            // Mechanical soft click
+            osc.frequency.setValueAtTime(1000, now);
+            gain.gain.setValueAtTime(0.03, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.05);
+            osc.start(now);
+            osc.stop(now + 0.05);
+        } else if (type === "hint" || type === "transition") {
+            // Sparkly arpeggio
+            const freqs = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+            freqs.forEach((freq, idx) => {
+                const oscH = audioCtx.createOscillator();
+                const gainH = audioCtx.createGain();
+                oscH.connect(gainH);
+                gainH.connect(audioCtx.destination);
+                oscH.frequency.setValueAtTime(freq, now + idx * 0.08);
+                gainH.gain.setValueAtTime(0.08, now + idx * 0.08);
+                gainH.gain.linearRampToValueAtTime(0.001, now + idx * 0.08 + 0.15);
+                oscH.start(now + idx * 0.08);
+                oscH.stop(now + idx * 0.08 + 0.15);
+            });
+        }
+    } catch (err) {
+        console.warn("AudioContext standard interaction blocked.", err);
+    }
+}
+
+// Confetti Particle System
+function resizeConfettiCanvas() {
+    confettiCanvas.width = confettiCanvas.parentElement.clientWidth;
+    confettiCanvas.height = confettiCanvas.parentElement.clientHeight;
+}
+
+function launchConfetti() {
+    resizeConfettiCanvas();
+    confettiParticles = [];
+    const colors = ["#3b82f6", "#10b981", "#ef4444", "#f59e0b", "#a855f7", "#ec4899"];
+    
+    for (let i = 0; i < 80; i++) {
+        confettiParticles.push({
+            x: confettiCanvas.width / 2 + (Math.random() - 0.5) * 60,
+            y: confettiCanvas.height - 30,
+            vx: (Math.random() - 0.5) * 10,
+            vy: -Math.random() * 14 - 6,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            radius: Math.random() * 4 + 3,
+            rotation: Math.random() * 360,
+            rotationSpeed: (Math.random() - 0.5) * 12,
+            opacity: 1
+        });
+    }
+    
+    if (confettiAnimation) cancelAnimationFrame(confettiAnimation);
+    animateConfetti();
+}
+
+function animateConfetti() {
+    confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    let activeParticles = false;
+    
+    confettiParticles.forEach(p => {
+        if (p.opacity <= 0) return;
+        
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.28; // gravity
+        p.vx *= 0.97; // air friction
+        p.rotation += p.rotationSpeed;
+        
+        if (p.y > confettiCanvas.height) {
+            p.opacity -= 0.04;
+        }
+        
+        if (p.opacity > 0) {
+            activeParticles = true;
+            confettiCtx.save();
+            confettiCtx.translate(p.x, p.y);
+            confettiCtx.rotate((p.rotation * Math.PI) / 180);
+            confettiCtx.fillStyle = p.color;
+            confettiCtx.globalAlpha = p.opacity;
+            confettiCtx.fillRect(-p.radius, -p.radius, p.radius * 2, p.radius * 2);
+            confettiCtx.restore();
+        }
+    });
+    
+    if (activeParticles) {
+        confettiAnimation = requestAnimationFrame(animateConfetti);
+    }
+}
+
+// App Initialization
+async function init() {
+    if (!window.mindmapData) {
+        questionListUl.innerHTML = `<li class="loading-item text-accent" style="color:var(--accent-red)">Error: window.mindmapData not found! Make sure questions_mindmap.js is loaded first.</li>`;
+        return;
+    }
+    
+    mindmaps = window.mindmapData;
+    
+    loadStateCache();
+    renderSyllabusList();
+    loadVoices();
+    if (synth.onvoiceschanged !== undefined) {
+        synth.onvoiceschanged = loadVoices;
+    }
+    
+    // Select first lecture
+    selectLecture(0);
+    
+    // Start canvas animations & clock timer
+    startTimer();
+    setupSoundwaveCanvas();
+    animateSoundwave();
+    
+    // SVG Connection lines resize hook
+    window.addEventListener("resize", drawMindmapConnections);
+
+    bindEvents();
+}
+
+// Load voices dropdown list
+function loadVoices() {
+    if (!synth) return;
+    const voices = synth.getVoices();
+    voiceSelect.innerHTML = "";
+    
+    const englishVoices = voices.filter(v => v.lang.includes("en-") || v.lang.includes("en_"));
+    
+    if (englishVoices.length === 0) {
+        voiceSelect.innerHTML = `<option value="">System Default</option>`;
+        return;
+    }
+    
+    englishVoices.forEach(voice => {
+        const option = document.createElement("option");
+        option.value = voice.name;
+        option.textContent = `${voice.name} (${voice.lang.split('-')[1] || voice.lang})`;
+        if (voice.name.includes("Google") || voice.name.includes("Natural") || voice.name.includes("David") || voice.name.includes("Zira")) {
+            option.selected = true;
+            currentVoiceName = voice.name;
+        }
+        voiceSelect.appendChild(option);
+    });
+
+    if (!currentVoiceName && englishVoices.length > 0) {
+        currentVoiceName = englishVoices[0].name;
+    }
+}
+
+// Storage local caching
+function loadStateCache() {
+    try {
+        const savedBookmarks = localStorage.getItem("gs_4411_bookmarks");
+        if (savedBookmarks) bookmarks = new Set(JSON.parse(savedBookmarks));
+    } catch (e) {
+        console.warn("localStorage bookmarks block bypassed.", e);
+    }
+    
+    try {
+        const savedAnswers = localStorage.getItem("gs_4411_answers");
+        if (savedAnswers) userAnswers = JSON.parse(savedAnswers);
+    } catch (e) {
+        console.warn("localStorage answers block bypassed.", e);
+    }
+    
+    try {
+        const savedVisited = localStorage.getItem("gs_4411_visited");
+        if (savedVisited) visited = new Set(JSON.parse(savedVisited));
+    } catch (e) {
+        console.warn("localStorage visited block bypassed.", e);
+    }
+}
+
+function saveState() {
+    try {
+        localStorage.setItem("gs_4411_bookmarks", JSON.stringify(Array.from(bookmarks)));
+        localStorage.setItem("gs_4411_answers", JSON.stringify(userAnswers));
+        localStorage.setItem("gs_4411_visited", JSON.stringify(Array.from(visited)));
+    } catch (e) {
+        console.warn("localStorage write block bypassed.", e);
+    }
+}
+
+// Class timer ticking
+function startTimer() {
+    elapsedTime = 0;
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        elapsedTime++;
+        const hrs = String(Math.floor(elapsedTime / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((elapsedTime % 3600) / 60)).padStart(2, '0');
+        const secs = String(elapsedTime % 60).padStart(2, '0');
+        headerTimerText.textContent = `${hrs}:${mins}:${secs}`;
+    }, 1000);
+}
+
+// Visualizer Canvas drawing loops
+function setupSoundwaveCanvas() {
+    if (!canvas || !ctx) return;
+    const resizeCanvas = () => {
+        canvas.width = canvas.parentElement.clientWidth * window.devicePixelRatio;
+        canvas.height = canvas.parentElement.clientHeight * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    };
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+}
+
+function animateSoundwave() {
+    if (!canvas || !ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const width = canvas.width / window.devicePixelRatio;
+    const height = canvas.height / window.devicePixelRatio;
+    
+    let amplitude = 2; // baseline vibration
+    if (isPlaying && synth.speaking) {
+        amplitude = 10 + Math.sin(wavePhase * 4.5) * 5;
+    }
+    
+    ctx.beginPath();
+    ctx.lineWidth = 2.5;
+    
+    const gradient = ctx.createLinearGradient(0, 0, width, 0);
+    gradient.addColorStop(0, "rgba(16, 185, 129, 0.05)");
+    gradient.addColorStop(0.5, isPlaying ? "rgba(16, 185, 129, 0.85)" : "rgba(255, 255, 255, 0.15)");
+    gradient.addColorStop(1, "rgba(16, 185, 129, 0.05)");
+    ctx.strokeStyle = gradient;
+    
+    for (let x = 0; x < width; x++) {
+        const y = (height / 2) + 
+                  Math.sin(x * 0.018 + wavePhase) * amplitude + 
+                  Math.sin(x * 0.04 + wavePhase * 1.3) * (amplitude * 0.35);
+        if (x === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    ctx.stroke();
+    
+    wavePhase += isPlaying && synth.speaking ? 0.08 : 0.025;
+    visualizerAnimation = requestAnimationFrame(animateSoundwave);
+}
+
+// Draw Curved Bezier line paths in SVG layer between center and branches
+function drawMindmapConnections() {
+    const surfaceRect = document.getElementById("video-canvas").getBoundingClientRect();
+    
+    // Clear old lines
+    mindmapSvg.innerHTML = "";
+    
+    const nodes = [
+        { el: nodeB1, color: "#3b82f6" },
+        { el: nodeB2, color: "#10b981" },
+        { el: nodeB3, color: "#a855f7" },
+        { el: nodeB4, color: "#ec4899" }
+    ];
+    
+    const centralRect = nodeCentral.getBoundingClientRect();
+    const cX = (centralRect.left + centralRect.width / 2) - surfaceRect.left;
+    const cY = (centralRect.top + centralRect.height / 2) - surfaceRect.top;
+    
+    nodes.forEach(node => {
+        if (node.el.style.display === "none") return;
+        
+        const branchRect = node.el.getBoundingClientRect();
+        const bX = (branchRect.left + branchRect.width / 2) - surfaceRect.left;
+        const bY = (branchRect.top + branchRect.height / 2) - surfaceRect.top;
+        
+        // Draw bezier curve connection
+        // We use control point that is shifted horizontally to make an S-curve
+        const ctrlX = cX + (bX - cX) * 0.5;
+        const ctrlY = cY + (bY - cY) * 0.2; // slight vertical curve bias
+        
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const d = `M ${cX} ${cY} Q ${ctrlX} ${ctrlY} ${bX} ${bY}`;
+        
+        path.setAttribute("d", d);
+        path.setAttribute("stroke", node.color);
+        path.setAttribute("stroke-width", "2.5");
+        path.setAttribute("fill", "none");
+        path.setAttribute("filter", `drop-shadow(0 0 4px ${node.color}40)`);
+        
+        // Save target element on path so we can highlight it in sync
+        path.setAttribute("id", `path-${node.el.id}`);
+        
+        mindmapSvg.appendChild(path);
+    });
+}
+
+// Render syllabus sidebar
+function renderSyllabusList(filter = "all", searchVal = "") {
+    questionListUl.innerHTML = "";
+    const cleanSearch = searchVal.trim().toLowerCase();
+    
+    mindmaps.forEach((m, idx) => {
+        const isBookmarked = bookmarks.has(idx);
+        const hasQuizSolved = idx in userAnswers;
+        const isQuizCorrect = hasQuizSolved && userAnswers[idx] === m.correct_index;
+        
+        if (filter === "unvisited" && visited.has(idx)) return;
+        if (filter === "incorrect" && (!hasQuizSolved || isQuizCorrect)) return;
+        if (filter === "bookmarked" && !isBookmarked) return;
+        
+        if (cleanSearch) {
+            const matchesId = m.id.toLowerCase().includes(cleanSearch);
+            const matchesTitle = m.title.toLowerCase().includes(cleanSearch);
+            const matchesCentral = m.central.toLowerCase().includes(cleanSearch);
+            const matchesExp = m.raw_explanation.toLowerCase().includes(cleanSearch);
+            if (!matchesId && !matchesTitle && !matchesCentral && !matchesExp) return;
+        }
+
+        let statusIcon = '<i class="fa-regular fa-circle question-status-icon status-unvisited"></i>';
+        if (hasQuizSolved) {
+            statusIcon = isQuizCorrect 
+                ? '<i class="fa-solid fa-circle-check question-status-icon status-correct"></i>'
+                : '<i class="fa-solid fa-circle-xmark question-status-icon status-incorrect"></i>';
+        }
+
+        const li = document.createElement("li");
+        li.className = `question-item ${idx === currentIndex ? 'active' : ''}`;
+        li.setAttribute("data-index", idx);
+        li.innerHTML = `
+            ${statusIcon}
+            <div class="question-info">
+                <div class="question-meta">
+                    <span class="question-id-badge">${m.id}</span>
+                    <span>${m.category}</span>
+                    ${isBookmarked ? '<i class="fa-solid fa-bookmark question-bookmark-icon"></i>' : ''}
+                </div>
+                <div class="question-title-text">${m.title}</div>
+            </div>
+        `;
+        
+        li.addEventListener("click", () => {
+            selectLecture(idx);
+        });
+        questionListUl.appendChild(li);
+    });
+
+    if (questionListUl.children.length === 0) {
+        questionListUl.innerHTML = `<li class="loading-item">No topics match filters.</li>`;
+    }
+}
+
+// Select a Syllabus Topic / Lecture
+function selectLecture(idx) {
+    if (idx < 0 || idx >= mindmaps.length) return;
+    
+    stopSpeech();
+    closeQuizOverlay();
+    
+    currentIndex = idx;
+    visited.add(idx);
+    saveState();
+    
+    // Update sidebar selections
+    document.querySelectorAll(".question-item").forEach(item => {
+        item.classList.remove("active");
+        if (parseInt(item.getAttribute("data-index")) === idx) {
+            item.classList.add("active");
+        }
+    });
+
+    const m = mindmaps[currentIndex];
+    
+    // Load Core Mindmap Data
+    mindmapCoreTitle.textContent = m.title;
+    
+    // Populate branch nodes dynamically
+    const branches = m.branches;
+    const nodes = [
+        { el: nodeB1, title: nodeB1Title, desc: nodeB1Desc },
+        { el: nodeB2, title: nodeB2Title, desc: nodeB2Desc },
+        { el: nodeB3, title: nodeB3Title, desc: nodeB3Desc },
+        { el: nodeB4, title: nodeB4Title, desc: nodeB4Desc }
+    ];
+    
+    nodes.forEach((n, bIdx) => {
+        if (bIdx < branches.length) {
+            n.el.style.display = "block";
+            n.title.textContent = branches[bIdx].title;
+            n.desc.textContent = branches[bIdx].text; // short summary on board
+        } else {
+            n.el.style.display = "none";
+        }
+    });
+
+    // Setup notes pad
+    studentNotesCard.style.display = "flex";
+    const savedNote = localStorage.getItem("gs_notes_" + currentIndex);
+    studentNotesTextarea.value = savedNote || "";
+
+    // Show Pop Quiz button
+    popQuizBtn.style.display = "flex";
+    
+    // Update Bookmark state in controls
+    if (bookmarks.has(currentIndex)) {
+        bookmarkToggleBtn.classList.add("active");
+        bookmarkToggleBtn.querySelector("i").className = "fa-solid fa-bookmark";
+    } else {
+        bookmarkToggleBtn.classList.remove("active");
+        bookmarkToggleBtn.querySelector("i").className = "fa-regular fa-bookmark";
+    }
+
+    // Classroom Teacher welcome greeting
+    setTeacherState("thinking", `Hello class! Let's study the mindmap for ${m.title}. The central node on the chalkboard represents ${m.central}. Let's break it down!`);
+
+    // Force redrawing connections lines after DOM reflow
+    setTimeout(drawMindmapConnections, 100);
+
+    // Refresh Sidebar lists
+    renderSyllabusList(
+        document.querySelector(".filter-btn.active").getAttribute("data-filter"),
+        searchInput.value
+    );
+
+    updateDashboardStats();
+    buildLectureSpeechQueue();
+    updateProgressBar();
+}
+
+// Update Top Dashboard stats
+function updateDashboardStats() {
+    const total = mindmaps.length;
+    const visitedCount = visited.size;
+    const answeredCount = Object.keys(userAnswers).length;
+    
+    const progressPercent = Math.round((visitedCount / total) * 100);
+    headerProgressBar.style.width = `${progressPercent}%`;
+    headerProgressText.textContent = `${visitedCount} / ${total} Topics`;
+
+    if (answeredCount > 0) {
+        const correctCount = Object.keys(userAnswers).reduce((acc, idx) => {
+            return acc + (userAnswers[idx] === mindmaps[idx].correct_index ? 1 : 0);
+        }, 0);
+        const accuracy = Math.round((correctCount / answeredCount) * 100);
+        headerScoreText.textContent = `${accuracy}%`;
+        
+        // Badges
+        const statLabel = document.querySelector("#stat-score .stat-label");
+        if (correctCount >= 20) {
+            statLabel.textContent = "Title: Scholar 🎓";
+        } else if (correctCount >= 10) {
+            statLabel.textContent = "Title: Smart Learner 💡";
+        } else {
+            statLabel.textContent = "Title: Beginner 🔰";
+        }
+    } else {
+        headerScoreText.textContent = "0%";
+    }
+}
+
+// Set Teacher State Avatar Face & speech
+function setTeacherState(state, text) {
+    const avatars = {
+        thinking: "🧐",
+        reading: "📖",
+        correct: "🎉",
+        incorrect: "😅",
+        hint: "💡",
+        explaining: "👨‍🏫"
+    };
+    teacherAvatar.textContent = avatars[state] || "👨‍🏫";
+    teacherBubble.textContent = text;
+}
+
+// Build standard lecture narration queue synced to nodes
+function buildLectureSpeechQueue() {
+    const m = mindmaps[currentIndex];
+    speechQueue = [];
+    
+    // Segment 0: Central Node Introduction
+    speechQueue.push({
+        text: `Today we are studying the mindmap on the board for ${m.title}. Our central concept is ${m.central}. Let's break it down logically.`,
+        category: "central",
+        nodeId: "node-central",
+        state: "thinking"
+    });
+    
+    // Segments 1-4: Branches broken down sentence-by-sentence to prevent TTS freezing
+    const nodeIds = ["node-b1", "node-b2", "node-b3", "node-b4"];
+    m.branches.forEach((b, idx) => {
+        // Add branch introduction
+        speechQueue.push({
+            text: `Let's look at the next branch: ${b.label}. ${b.text}`,
+            category: "branch",
+            nodeId: nodeIds[idx],
+            state: "explaining"
+        });
+        
+        // Partition detailed text into sentence-by-sentence segments
+        // Splits on period followed by space and uppercase letter/quote
+        const sentences = b.detail.split(/\. (?=[A-Z0-9\"\'“\u201c\u201d])/);
+        sentences.forEach(sentence => {
+            let cleanSentence = sentence.trim();
+            if (cleanSentence.length > 2) {
+                if (!/[.!?]$/.test(cleanSentence)) {
+                    cleanSentence += ".";
+                }
+                speechQueue.push({
+                    text: cleanSentence,
+                    category: "branch",
+                    nodeId: nodeIds[idx],
+                    state: "explaining"
+                });
+            }
+        });
+    });
+    
+    // Segment 5: Outro
+    speechQueue.push({
+        text: `That completes our mindmap explanation for ${m.central}. Click the Pop Quiz button at the bottom of the board to test your memory, or type notes below to remember what you've learned!`,
+        category: "central",
+        nodeId: "node-central",
+        state: "thinking"
+    });
+    
+    currentQueueIndex = 0;
+}
+
+// Play lecture audio queue
+function playSpeechQueue() {
+    if (currentQueueIndex >= speechQueue.length) {
+        isPlaying = false;
+        updatePlayButtonState();
+        setTeacherState("thinking", "Lecture complete! Feel free to write notes in your booklet or start the Pop Quiz.");
+        
+        if (isAutoplay && currentIndex < mindmaps.length - 1) {
+            setTimeout(() => {
+                selectLecture(currentIndex + 1);
+                togglePlay();
+            }, 1800);
+        }
+        return;
+    }
+
+    const item = speechQueue[currentQueueIndex];
+    utterance = new SpeechSynthesisUtterance(item.text);
+    
+    if (currentVoiceName) {
+        const voice = synth.getVoices().find(v => v.name === currentVoiceName);
+        if (voice) utterance.voice = voice;
+    }
+    
+    utterance.rate = speed;
+    utterance.volume = parseFloat(volumeSlider.value);
+    
+    // Visual Node Highlight trigger
+    highlightActiveNode(item.nodeId);
+
+    utterance.onstart = () => {
+        isPlaying = true;
+        updatePlayButtonState();
+        setTeacherState(item.state || "thinking", item.text);
+    };
+
+    utterance.onend = () => {
+        dehighlightActiveNode(item.nodeId);
+        currentQueueIndex++;
+        playSpeechQueue();
+    };
+
+    utterance.onerror = (e) => {
+        console.error("SpeechSynthesis error:", e);
+        isPlaying = false;
+        updatePlayButtonState();
+    };
+
+    synth.speak(utterance);
+}
+
+// Visual highlighting for mindmap nodes
+function highlightActiveNode(nodeId) {
+    if (!nodeId) return;
+    const node = document.getElementById(nodeId);
+    if (node) {
+        node.classList.add("active-highlight");
+        // Scroll the board to keep active node visible
+        node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    
+    // Glow the connection path leading to this node
+    const path = document.getElementById(`path-${nodeId}`);
+    if (path) {
+        path.setAttribute("stroke-width", "4");
+        path.style.filter = `drop-shadow(0 0 10px ${path.getAttribute("stroke")})`;
+    }
+}
+
+function dehighlightActiveNode(nodeId) {
+    if (!nodeId) return;
+    const node = document.getElementById(nodeId);
+    if (node) node.classList.remove("active-highlight");
+    
+    const path = document.getElementById(`path-${nodeId}`);
+    if (path) {
+        path.setAttribute("stroke-width", "2.5");
+        path.style.filter = `drop-shadow(0 0 4px ${path.getAttribute("stroke")}40)`;
+    }
+}
+
+// Play/Pause toggling
+function togglePlay() {
+    if (isPlaying) {
+        synth.pause();
+        isPlaying = false;
+        updatePlayButtonState();
+    } else {
+        if (synth.paused) {
+            synth.resume();
+            isPlaying = true;
+            updatePlayButtonState();
+        } else {
+            playSpeechQueue();
+        }
+    }
+}
+
+function stopSpeech() {
+    if (synth) {
+        synth.cancel();
+    }
+    // Dehighlight all
+    dehighlightActiveNode("node-central");
+    dehighlightActiveNode("node-b1");
+    dehighlightActiveNode("node-b2");
+    dehighlightActiveNode("node-b3");
+    dehighlightActiveNode("node-b4");
+    
+    isPlaying = false;
+    updatePlayButtonState();
+}
+
+function updatePlayButtonState() {
+    if (isPlaying) {
+        playBtn.innerHTML = `<i class="fa-solid fa-pause"></i>`;
+        playBtn.title = "Pause Lecture";
+    } else {
+        playBtn.innerHTML = `<i class="fa-solid fa-play"></i>`;
+        playBtn.title = "Play Lecture";
+    }
+}
+
+// Progress slider timeline
+function updateProgressBar() {
+    const totalSegments = speechQueue.length || 1;
+    const currentSegment = currentQueueIndex;
+    const percent = Math.min((currentSegment / totalSegments) * 100, 100);
+    
+    progressSliderFill.style.width = `${percent}%`;
+    progressSliderHandle.style.left = `${percent}%`;
+
+    currentSpeechTime.textContent = `${currentQueueIndex}:00`;
+    totalSpeechTime.textContent = `${speechQueue.length}:00`;
+}
+
+// Sync progress bar
+setInterval(() => {
+    if (isPlaying && synth.speaking) {
+        updateProgressBar();
+    }
+}, 300);
+
+// POP QUIZ OVERLAY CONTROL
+function openQuizOverlay() {
+    stopSpeech();
+    playAudioBeep("transition");
+    
+    const m = mindmaps[currentIndex];
+    
+    quizQuestionText.textContent = m.question_text;
+    quizOverlay.style.display = "flex";
+    
+    // Statements block
+    // Look for statements list like "1. ... \n 2. ..." in question text
+    quizStatements.innerHTML = "";
+    quizStatements.style.display = "none";
+    
+    // Load Options Grid
+    quizOptionsGrid.innerHTML = "";
+    const optionLetters = ["A", "B", "C", "D"];
+    const hasAnswered = currentIndex in userAnswers;
+    
+    m.options.forEach((opt, oIdx) => {
+        const btn = document.createElement("button");
+        btn.className = "option-card-btn";
+        btn.setAttribute("data-option-index", oIdx);
+        
+        if (hasAnswered) {
+            btn.classList.add("disabled");
+            if (oIdx === m.correct_index) {
+                btn.classList.add("correct");
+            } else if (oIdx === userAnswers[currentIndex]) {
+                btn.classList.add("incorrect");
+            }
+        }
+        
+        btn.innerHTML = `
+            <div class="option-badge">${optionLetters[oIdx]}</div>
+            <div class="option-text">${opt}</div>
+        `;
+        
+        btn.addEventListener("click", () => {
+            handleQuizAnswerSelect(oIdx);
+        });
+        quizOptionsGrid.appendChild(btn);
+    });
+
+    // Explanation Box
+    quizExplanationText.textContent = m.raw_explanation;
+    if (hasAnswered) {
+        quizExplanationBox.style.display = "block";
+    } else {
+        quizExplanationBox.style.display = "none";
+    }
+    
+    setTeacherState("thinking", `Pop Quiz Checkpoint! Let's solve this question about ${m.central}. What is the correct option?`);
+}
+
+function closeQuizOverlay() {
+    quizOverlay.style.display = "none";
+    
+    // Rebuild speech queue for mindmap
+    buildLectureSpeechQueue();
+    setTeacherState("thinking", `Welcome back to the chalkboard! We are studying ${mindmaps[currentIndex].title}.`);
+}
+
+// User solves pop quiz MCQ option
+function handleQuizAnswerSelect(oIdx) {
+    if (currentIndex in userAnswers) return;
+    
+    userAnswers[currentIndex] = oIdx;
+    saveState();
+    
+    const m = mindmaps[currentIndex];
+    const optionLetters = ["A", "B", "C", "D"];
+    const isCorrect = oIdx === m.correct_index;
+    
+    // Apply styling
+    document.querySelectorAll("#quiz-options-grid .option-card-btn").forEach((btn, idx) => {
+        btn.classList.add("disabled");
+        if (idx === m.correct_index) {
+            btn.classList.add("correct");
+        } else if (idx === oIdx) {
+            btn.classList.add("incorrect");
+        }
+    });
+    
+    quizExplanationBox.style.display = "block";
+    
+    if (isCorrect) {
+        playAudioBeep("correct");
+        launchConfetti();
+        setTeacherState("correct", `Fantastic! Option ${optionLetters[oIdx]} is correct! Your performance is improving!`);
+    } else {
+        playAudioBeep("incorrect");
+        setTeacherState("incorrect", `Ah, not quite. The correct answer is Option ${optionLetters[m.correct_index]}. Let's read the blackboard explanation.`);
+    }
+    
+    // Speak explanation in quiz context
+    const explanationSpeech = isCorrect
+        ? `Brilliant! Option ${optionLetters[oIdx]} is correct. Here is why. ${m.raw_explanation}`
+        : `Ah, that's incorrect. The correct answer is Option ${optionLetters[m.correct_index]}. Here is the explanation. ${m.raw_explanation}`;
+        
+    utterance = new SpeechSynthesisUtterance(explanationSpeech);
+    if (currentVoiceName) {
+        const voice = synth.getVoices().find(v => v.name === currentVoiceName);
+        if (voice) utterance.voice = voice;
+    }
+    utterance.rate = speed;
+    utterance.volume = parseFloat(volumeSlider.value);
+    
+    utterance.onstart = () => { isPlaying = true; updatePlayButtonState(); };
+    utterance.onend = () => { isPlaying = false; updatePlayButtonState(); };
+    
+    synth.speak(utterance);
+    
+    // Refresh Sidebar & Stats
+    renderSyllabusList(
+        document.querySelector(".filter-btn.active").getAttribute("data-filter"),
+        searchInput.value
+    );
+    updateDashboardStats();
+}
+
+// Bind event listeners
+function bindEvents() {
+    playBtn.addEventListener("click", togglePlay);
+    
+    prevBtn.addEventListener("click", () => {
+        if (currentIndex > 0) selectLecture(currentIndex - 1);
+    });
+    
+    nextBtn.addEventListener("click", () => {
+        if (currentIndex < mindmaps.length - 1) selectLecture(currentIndex + 1);
+    });
+
+    speedSelect.addEventListener("change", (e) => {
+        speed = parseFloat(e.target.value);
+        if (isPlaying) {
+            stopSpeech();
+            playSpeechQueue();
+        }
+    });
+
+    voiceSelect.addEventListener("change", (e) => {
+        currentVoiceName = e.target.value;
+        if (isPlaying) {
+            stopSpeech();
+            playSpeechQueue();
+        }
+    });
+
+    autoplayToggle.addEventListener("change", (e) => {
+        isAutoplay = e.target.checked;
+    });
+
+    // Bookmark Topic
+    bookmarkToggleBtn.addEventListener("click", () => {
+        const isBookmarked = bookmarks.has(currentIndex);
+        if (isBookmarked) {
+            bookmarks.delete(currentIndex);
+        } else {
+            bookmarks.add(currentIndex);
+        }
+        saveState();
+        selectLecture(currentIndex);
+    });
+
+    // Auto-save notes
+    studentNotesTextarea.addEventListener("input", (e) => {
+        localStorage.setItem("gs_notes_" + currentIndex, e.target.value);
+    });
+
+    // Pop Quiz triggers
+    popQuizBtn.addEventListener("click", openQuizOverlay);
+    quizCloseBtn.addEventListener("click", closeQuizOverlay);
+
+    // Volume controllers
+    volumeSlider.addEventListener("input", (e) => {
+        const vol = parseFloat(e.target.value);
+        if (utterance) utterance.volume = vol;
+        
+        const icon = muteBtn.querySelector("i");
+        if (vol === 0) {
+            icon.className = "fa-solid fa-volume-xmark";
+        } else if (vol < 0.4) {
+            icon.className = "fa-solid fa-volume-low";
+        } else {
+            icon.className = "fa-solid fa-volume-high";
+        }
+    });
+
+    muteBtn.addEventListener("click", () => {
+        const currentVol = parseFloat(volumeSlider.value);
+        if (currentVol > 0) {
+            muteBtn.setAttribute("data-prev-vol", currentVol);
+            volumeSlider.value = 0;
+            muteBtn.querySelector("i").className = "fa-solid fa-volume-xmark";
+        } else {
+            const prevVol = parseFloat(muteBtn.getAttribute("data-prev-vol") || "0.8");
+            volumeSlider.value = prevVol;
+            muteBtn.querySelector("i").className = prevVol < 0.4 ? "fa-solid fa-volume-low" : "fa-solid fa-volume-high";
+        }
+        volumeSlider.dispatchEvent(new Event('input'));
+    });
+
+    // Search input
+    searchInput.addEventListener("input", (e) => {
+        const activeFilter = document.querySelector(".filter-btn.active").getAttribute("data-filter");
+        renderSyllabusList(activeFilter, e.target.value);
+    });
+
+    // Syllabus filters
+    filterButtons.forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            filterButtons.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            
+            const filter = btn.getAttribute("data-filter");
+            renderSyllabusList(filter, searchInput.value);
+        });
+    });
+
+    // Timeline progress click seek
+    progressSliderTrack.addEventListener("click", (e) => {
+        const rect = progressSliderTrack.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const totalWidth = rect.width;
+        const clickPercent = clickX / totalWidth;
+        
+        const targetQueueIdx = Math.floor(clickPercent * speechQueue.length);
+        if (targetQueueIdx >= 0 && targetQueueIdx < speechQueue.length) {
+            stopSpeech();
+            currentQueueIndex = targetQueueIdx;
+            playSpeechQueue();
+        }
+    });
+}
+
+// Start on DOM Load
+window.addEventListener("DOMContentLoaded", init);
+
+// Chromium SpeechSynthesis Keep-Alive Workaround
+// Periodically pauses and resumes to prevent garbage collection and freeze bugs
+if (window.keepAliveInterval) clearInterval(window.keepAliveInterval);
+window.keepAliveInterval = setInterval(() => {
+    if (isPlaying && window.speechSynthesis.speaking) {
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+    }
+}, 7000);
+
+    

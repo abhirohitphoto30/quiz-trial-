@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Economics Classroom Video</title>
+    <style>
+        :root {
+            --font-primary: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --bg-app: #0f172a;
+            --bg-player: #020617;
+            --bg-sidebar: #1e293b;
+            --bg-card: #334155;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --primary: #e11d48;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --classroom-wall: #1e293b;
+            --classroom-floor: #0f172a;
+            --board-frame: #475569;
+            --blackboard-bg: #1e293b;
+            --smartboard-bezel: #1e1b4b;
+            --smartboard-screen: #020617;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-primary); background-color: var(--bg-app); color: var(--text-primary); overflow-x: hidden; padding: 20px; }
+        .player-layout { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
+        @media (max-width: 1100px) { .player-layout { grid-template-columns: 1fr; } }
+        .player-column { display: flex; flex-direction: column; gap: 16px; }
+        .sidebar { background-color: var(--bg-sidebar); border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; height: 650px; }
+        .sidebar-header { padding: 16px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-header h3 { font-size: 16px; font-weight: 600; }
+        .playlist-items { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+        .playlist-item { display: flex; padding: 10px; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; align-items: center; gap: 12px; background: none; border: none; color: var(--text-secondary); text-align: left; width: 100%; }
+        .playlist-item:hover { background-color: rgba(255, 255, 255, 0.05); color: #ffffff; }
+        .playlist-item.active { background-color: rgba(225, 29, 72, 0.15); color: var(--primary); font-weight: 600; }
+        .playlist-item-num { font-size: 12px; font-weight: bold; color: var(--text-muted); min-width: 20px; }
+        .playlist-item.active .playlist-item-num { color: var(--primary); }
+        .playlist-item-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .video-container { position: relative; width: 100%; aspect-ratio: 16/9; background-color: var(--bg-player); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); }
+        .classroom-stage { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
+        .classroom-wall { position: absolute; top: 0; left: 0; width: 100%; height: 75%; background-color: var(--classroom-wall); border-bottom: 10px solid #475569; z-index: 1; }
+        .blackboard { position: absolute; top: 10%; right: 4%; width: 24%; height: 55%; background-color: #0f172a; border: 6px solid #78350f; border-radius: 4px; padding: 10px; color: rgba(255,255,255,0.8); font-family: monospace; font-size: 8px; line-height: 1.5; z-index: 2; }
+        .blackboard h4 { text-align: center; color: #fbbf24; border-bottom: 1px dashed rgba(255,255,255,0.2); padding-bottom: 4px; margin-bottom: 6px; }
+        .smart-board-container { position: absolute; top: 6%; left: 38%; width: 34%; height: 68%; z-index: 2; display: flex; flex-direction: column; align-items: center; }
+        .smart-board { width: 100%; height: 94%; background-color: #1e1b4b; border-radius: 8px; padding: 6px; border: 2px solid #312e81; }
+        .smart-board-inner { width: 100%; height: 100%; background-color: var(--smartboard-screen); border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; }
+        .sb-header { height: 20px; background-color: #1e1b4b; padding: 0 8px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #312e81; }
+        .sb-title { font-size: 8px; color: #a5b4fc; font-weight: 600; }
+        .sb-content { flex: 1; position: relative; color: #ffffff; overflow: hidden; padding: 10px; }
+        .sb-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 10px; display: flex; flex-direction: column; justify-content: center; transition: opacity 0.3s; opacity: 1; }
+        .sb-screen.hidden { opacity: 0; pointer-events: none; }
+        .sb-topic-intro { text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; }
+        .sb-topic-badge { font-size: 8px; background-color: var(--primary-light); color: #991b1b; padding: 2px 8px; border-radius: 10px; font-weight: bold; text-transform: uppercase; }
+        .sb-topic-title { font-size: 14px; font-weight: 800; color: #fbbf24; }
+        .sb-topic-desc { font-size: 9.5px; color: var(--text-secondary); max-width: 90%; line-height: 1.4; }
+        .sb-question-header h3 { font-size: 10px; font-weight: 600; line-height: 1.4; color: #f8fafc; margin-bottom: 8px; }
+        .sb-options-grid { display: grid; grid-template-columns: 1fr; gap: 4px; }
+        .sb-option-btn { width: 100%; padding: 5px 8px; background-color: #1e293b; border: 1px solid #334155; border-radius: 4px; color: #cbd5e1; text-align: left; font-size: 8.5px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+        .sb-option-btn.correct { background-color: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #34d399; }
+        .opt-letter { display: inline-flex; width: 14px; height: 14px; background-color: #334155; border-radius: 50%; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; }
+        .sb-option-btn.correct .opt-letter { background-color: #10b981; color: #ffffff; }
+        .sb-flashcard-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; perspective: 1000px; }
+        .sb-flashcard { width: 90%; height: 90%; position: relative; transform-style: preserve-3d; transition: transform 0.6s; }
+        .sb-flashcard.flipped { transform: rotateY(180deg); }
+        .sb-fc-front, .sb-fc-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid #fbbf24; }
+        .sb-fc-front { background: linear-gradient(135deg, #1e1b4b, #311042); color: #ffffff; }
+        .sb-fc-back { background: linear-gradient(135deg, #fef3c7, #fffbeb); color: #1e293b; transform: rotateY(180deg); overflow-y: auto; }
+        .sb-fc-tag { font-size: 8px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; color: #fbbf24; }
+        .sb-fc-back .sb-fc-tag { color: #b45309; }
+        .sb-fc-title { font-size: 12px; font-weight: 700; text-align: center; }
+        .sb-fc-desc { font-size: 9px; line-height: 1.4; text-align: center; font-weight: 500; }
+        .teacher-container { position: absolute; bottom: 12%; left: 73%; width: 18%; height: 65%; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+        .teacher-avatar { width: 100%; height: 75%; transform-origin: bottom center; animation: teacher-idle 4s infinite ease-in-out; }
+        @keyframes teacher-idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+        .speech-bubble { position: absolute; background-color: #ffffff; color: #1e293b; padding: 8px 12px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); z-index: 10; font-size: 10px; line-height: 1.4; border: 1px solid #e2e8f0; max-width: 180px; transition: opacity 0.3s; opacity: 1; }
+        .speech-bubble.hidden { opacity: 0; pointer-events: none; }
+        .speaker-name { font-weight: 700; color: var(--primary); margin-bottom: 2px; font-size: 8px; text-transform: uppercase; }
+        .speech-arrow { position: absolute; width: 0; height: 0; border-style: solid; }
+        .teacher-bubble { bottom: 80%; right: 10%; width: 180px; }
+        .teacher-bubble .speech-arrow { bottom: -8px; right: 15px; border-width: 8px 8px 0 0; border-color: #ffffff transparent transparent transparent; }
+        .speaking #teacher-mouth { animation: mouth-talk 0.2s infinite alternate; }
+        @keyframes mouth-talk { 0% { d: path("M92,122 Q100,122 108,122"); } 100% { d: path("M92,120 Q100,126 108,120"); } }
+        .gesturing #teacher-hand-card { animation: arm-gesture 1.5s infinite ease-in-out alternate; }
+        @keyframes arm-gesture { 0% { transform: translateY(0); } 100% { transform: translateY(-12px); } }
+        .students-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 28%; z-index: 4; display: flex; justify-content: space-around; padding: 0 12%; }
+        .student-desk { width: 20%; height: 100%; position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+        .student-desk::after { content: ''; position: absolute; bottom: 0; width: 120%; height: 18px; background-color: #b45309; border-top: 4px solid #d97706; border-radius: 3px; z-index: 5; }
+        .student-avatar { width: 50px; height: 70px; position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+        .student-avatar .head { width: 22px; height: 22px; background-color: #fbc3a6; border-radius: 50%; margin-bottom: -4px; position: relative; z-index: 3; }
+        .student-avatar .shoulders { width: 38px; height: 25px; background-color: #3b82f6; border-radius: 12px 12px 0 0; z-index: 2; }
+        #student-rohan .shoulders { background-color: #ef4444; }
+        #student-ananya .shoulders { background-color: #10b981; }
+        #student-vikram .shoulders { background-color: #f59e0b; }
+        .hair-back { position: absolute; top: 8px; width: 26px; height: 18px; background-color: #1a1a1a; z-index: 1; }
+        .hair-boy { border-radius: 8px 8px 0 0; }
+        .hair-boy2 { background-color: #78350f; border-radius: 6px 6px 0 0; }
+        .hair-girl { background-color: #451a03; height: 30px; border-radius: 10px 10px 6px 6px; }
+        .raised-hand { position: absolute; bottom: 30px; right: -10px; width: 18px; height: 45px; z-index: 10; display: flex; flex-direction: column; align-items: center; animation: hand-bounce 0.8s infinite alternate; }
+        @keyframes hand-bounce { 0% { transform: translateY(0); } 100% { transform: translateY(-6px); } }
+        .raised-hand::before { content: ''; width: 6px; height: 30px; background-color: #fbc3a6; border-radius: 3px; }
+        .hand-card { width: 18px; height: 18px; background-color: #38bdf8; color: #ffffff; border-radius: 3px; font-weight: bold; font-size: 10px; display: flex; align-items: center; justify-content: center; position: absolute; top: -10px; }
+        .student-bubble { bottom: 80px; left: 50%; transform: translateX(-50%); width: 140px; text-align: center; }
+        .student-bubble::after { content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-style: solid; border-width: 6px 6px 0 6px; border-color: #ffffff transparent transparent transparent; }
+        .active-speaker .head { box-shadow: 0 0 0 2px var(--primary); }
+        .video-controls { background-color: #020617; padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; border-radius: 0 0 12px 12px; border-top: 1px solid var(--border-color); }
+        .timeline-container { display: flex; align-items: center; gap: 10px; }
+        .time-label { font-family: monospace; font-size: 10px; color: var(--text-muted); min-width: 35px; }
+        .timeline-bar { flex: 1; height: 4px; background-color: #1e293b; border-radius: 2px; position: relative; cursor: pointer; }
+        .timeline-fill { height: 100%; width: 0%; background-color: var(--primary); border-radius: 2px; position: absolute; top: 0; left: 0; }
+        .timeline-knob { width: 10px; height: 10px; background-color: var(--primary); border-radius: 50%; position: absolute; top: -3px; left: 0%; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s; }
+        .timeline-bar:hover .timeline-knob { opacity: 1; }
+        .control-buttons { display: flex; align-items: center; justify-content: space-between; }
+        .cb-left, .cb-right { display: flex; align-items: center; gap: 12px; }
+        .play-btn, .control-icon-btn { background: none; border: none; color: var(--text-secondary); font-size: 14px; cursor: pointer; }
+        .play-btn:hover, .control-icon-btn:hover { color: #ffffff; }
+        .control-icon-btn.active { color: var(--primary); }
+        .speed-select { background-color: #1e293b; color: var(--text-primary); border: 1px solid var(--border-color); padding: 3px 6px; border-radius: 4px; font-size: 9px; outline: none; cursor: pointer; }
+        .status-marquee { font-size: 11px; color: var(--text-secondary); font-style: italic; text-align: center; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
+        .toast { background-color: var(--bg-sidebar); color: var(--text-primary); padding: 10px 16px; border-radius: 6px; font-size: 12px; border-left: 4px solid var(--primary); transform: translateX(120%); animation: toast-in 0.3s forwards; }
+        @keyframes toast-in { to { transform: translateX(0); } }
+        .toast.success { border-left-color: var(--success); }
+        .toast.warning { border-left-color: var(--warning); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="theme-anime">
+    <div class="player-layout">
+        <div class="player-column">
+            <div class="video-container">
+                <div class="classroom-stage">
+                    <div class="classroom-wall">
+                        <div class="blackboard">
+                            <h4>Class Summary</h4>
+                            <p>1) GDP = Gross Domestic Product</p>
+                            <p>2) Opportunity Cost = Alternative Value</p>
+                            <p>3) Kuznets Curve = Inequality vs Growth</p>
+                        </div>
+                    </div>
+                    <div class="smart-board-container">
+                        <div class="smart-board">
+                            <div class="smart-board-inner">
+                                <div class="sb-header"><span class="sb-title">SmartBoard Interactive v2.0</span></div>
+                                <div class="sb-content">
+                                    <div class="sb-screen" id="sb-screen-intro">
+                                        <div class="sb-topic-intro">
+                                            <span class="sb-topic-badge">Topic Introduction</span>
+                                            <div class="sb-topic-title" id="sb-intro-title">Loading...</div>
+                                            <div class="sb-topic-desc" id="sb-intro-desc">Loading...</div>
+                                        </div>
+                                    </div>
+                                    <div class="sb-screen hidden" id="sb-screen-question">
+                                        <div class="sb-question-header"><h3 id="sb-q-text">Loading...</h3></div>
+                                        <div class="sb-options-grid" id="sb-options-container"></div>
+                                    </div>
+                                    <div class="sb-screen hidden" id="sb-screen-flashcard">
+                                        <div class="sb-flashcard-container">
+                                            <div class="sb-flashcard" id="sb-flashcard-sprite">
+                                                <div class="sb-fc-front">
+                                                    <span class="sb-fc-tag" id="sb-fc-tag-front">Flashcard</span>
+                                                    <div class="sb-fc-title" id="sb-fc-title-front">Front Text</div>
+                                                </div>
+                                                <div class="sb-fc-back">
+                                                    <span class="sb-fc-tag" id="sb-fc-tag-back">Explanation</span>
+                                                    <div class="sb-fc-desc" id="sb-fc-desc-back">Back Text</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="teacher-container">
+                        <div class="speech-bubble teacher-bubble hidden" id="teacher-bubble">
+                            <div class="speaker-name">Mrs. Sharma (Teacher)</div>
+                            <div class="speech-text" id="teacher-bubble-text">Hello Class!</div>
+                            <div class="speech-arrow"></div>
+                        </div>
+                        <div class="teacher-avatar" id="teacher-avatar">
+                            <svg viewBox="0 0 200 300" width="100%" height="100%">
+                                <path d="M70,80 C50,80 50,130 70,140 Z" fill="#2d1e18" />
+                                <path d="M130,80 C150,80 150,130 130,140 Z" fill="#2d1e18" />
+                                <circle cx="100" cy="65" r="25" fill="#2d1e18" />
+                                <path d="M60,200 L140,200 L160,300 L40,300 Z" fill="#e2ebf0" />
+                                <path d="M55,200 C30,220 40,300 40,300 L75,300 L70,220 Z" fill="#719082" id="arm-left" />
+                                <path d="M145,200 C170,220 160,300 160,300 L125,300 L130,220 Z" fill="#719082" id="arm-right" />
+                                <path d="M70,200 L130,200 L145,300 L55,300 Z" fill="#719082" />
+                                <path d="M90,200 L110,200 L125,300 L75,300 Z" fill="#e2ebf0" />
+                                <rect x="90" y="130" width="20" height="30" rx="5" fill="#fbc3a6" />
+                                <rect x="75" y="80" width="50" height="60" rx="25" fill="#fbc3a6" />
+                                <path d="M73,90 C85,75 115,75 127,90 C130,80 70,80 73,90 Z" fill="#2d1e18" />
+                                <rect x="78" y="98" width="18" height="12" rx="3" fill="none" stroke="#1a1a1a" stroke-width="2.5" />
+                                <rect x="104" y="98" width="18" height="12" rx="3" fill="none" stroke="#1a1a1a" stroke-width="2.5" />
+                                <line x1="96" y1="104" x2="104" y2="104" stroke="#1a1a1a" stroke-width="2.5" />
+                                <circle cx="87" cy="104" r="2" fill="#1a1a1a" />
+                                <circle cx="113" cy="104" r="2" fill="#1a1a1a" />
+                                <path d="M92,122 Q100,122 108,122" fill="none" stroke="#c0392b" stroke-width="3" stroke-linecap="round" id="teacher-mouth" />
+                                <g id="teacher-hand-card">
+                                    <circle cx="140" cy="220" r="10" fill="#fbc3a6" />
+                                    <rect x="135" y="170" width="45" height="50" rx="4" fill="#f1c40f" stroke="#d68910" stroke-width="1.5" />
+                                    <text x="157" y="200" font-size="10" font-weight="bold" fill="#2c3e50" text-anchor="middle" id="teacher-card-text">Q1</text>
+                                </g>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="students-container">
+                        <div class="student-desk">
+                            <div class="student-avatar" id="student-rohan">
+                                <div class="speech-bubble student-bubble hidden" id="rohan-speech">
+                                    <span class="std-name">Rohan</span>
+                                    <p>Yes, Ma'am!</p>
+                                </div>
+                                <div class="hair-back hair-boy"></div>
+                                <div class="head"></div>
+                                <div class="shoulders"></div>
+                                <div class="raised-hand hidden" id="rohan-hand"><div class="hand-card">?</div></div>
+                            </div>
+                        </div>
+                        <div class="student-desk">
+                            <div class="student-avatar" id="student-ananya">
+                                <div class="speech-bubble student-bubble hidden" id="ananya-speech">
+                                    <span class="std-name">Ananya</span>
+                                    <p>I agree!</p>
+                                </div>
+                                <div class="hair-back hair-girl"></div>
+                                <div class="head"></div>
+                                <div class="shoulders"></div>
+                                <div class="raised-hand hidden" id="ananya-hand"><div class="hand-card">?</div></div>
+                            </div>
+                        </div>
+                        <div class="student-desk">
+                            <div class="student-avatar" id="student-vikram">
+                                <div class="speech-bubble student-bubble hidden" id="vikram-speech">
+                                    <span class="std-name">Vikram</span>
+                                    <p>Yes, correct!</p>
+                                </div>
+                                <div class="hair-back hair-boy2"></div>
+                                <div class="head"></div>
+                                <div class="shoulders"></div>
+                                <div class="raised-hand hidden" id="vikram-hand"><div class="hand-card">?</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="video-controls">
+                <div class="timeline-container">
+                    <span class="time-label" id="current-time">00:00</span>
+                    <div class="timeline-bar" id="timeline-bar">
+                        <div class="timeline-fill" id="timeline-fill"></div>
+                        <div class="timeline-knob" id="timeline-knob"></div>
+                    </div>
+                    <span class="time-label" id="total-time">02:30</span>
+                </div>
+                <div class="control-buttons">
+                    <div class="cb-left">
+                        <button class="play-btn" id="play-btn" title="Play">▶</button>
+                        <button class="control-icon-btn" id="prev-btn" title="Previous">⏮</button>
+                        <button class="control-icon-btn" id="next-btn" title="Next">⏭</button>
+                        <button class="control-icon-btn" id="voice-btn" title="Toggle Voice">🔊</button>
+                        <select class="speed-select" id="speed-select">
+                            <option value="0.75">0.75x</option>
+                            <option value="1" selected>1.0x</option>
+                            <option value="1.25">1.25x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2">2.0x</option>
+                        </select>
+                    </div>
+                    <div class="status-marquee" id="status-marquee">Click Play to start.</div>
+                    <div class="cb-right">
+                        <button class="control-icon-btn" id="interactive-btn" title="Toggle Quiz Mode">❓ Quiz Mode</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <aside class="sidebar">
+            <div class="sidebar-header"><h3>Economics Lecture Topics</h3></div>
+            <div class="playlist-items" id="playlist-items"></div>
+        </aside>
+    </div>
+    <div class="toast-container" id="toast-container"></div>
+    <script>
+        const questionsData = __QUESTIONS_DATA__;
+        let currentQIdx = 0, currentStepIdx = 0, isPlaying = false, playbackSpeed = 1.0, voiceEnabled = true, quizMode = false, userSelectAllowed = false, completedQuestions = new Set(), utterance = null, timer = null;
+        const playBtn = document.getElementById("play-btn"), prevBtn = document.getElementById("prev-btn"), nextBtn = document.getElementById("next-btn"), voiceBtn = document.getElementById("voice-btn"), interactiveBtn = document.getElementById("interactive-btn"), speedSelect = document.getElementById("speed-select"), timelineBar = document.getElementById("timeline-bar"), timelineFill = document.getElementById("timeline-fill"), timelineKnob = document.getElementById("timeline-knob"), currentTimeEl = document.getElementById("current-time"), totalTimeEl = document.getElementById("total-time"), statusMarquee = document.getElementById("status-marquee"), sbScreenIntro = document.getElementById("sb-screen-intro"), sbScreenQuestion = document.getElementById("sb-screen-question"), sbScreenFlashcard = document.getElementById("sb-screen-flashcard"), sbIntroTitle = document.getElementById("sb-intro-title"), sbIntroDesc = document.getElementById("sb-intro-desc"), sbQText = document.getElementById("sb-q-text"), sbOptionsContainer = document.getElementById("sb-options-container"), sbFlashcardSprite = document.getElementById("sb-flashcard-sprite"), sbFcTitleFront = document.getElementById("sb-fc-title-front"), sbFcDescBack = document.getElementById("sb-fc-desc-back"), sbFcTagFront = document.getElementById("sb-fc-tag-front"), sbFcTagBack = document.getElementById("sb-fc-tag-back"), teacherBubble = document.getElementById("teacher-bubble"), teacherBubbleText = document.getElementById("teacher-bubble-text"), teacherAvatar = document.getElementById("teacher-avatar"), teacherCardText = document.getElementById("teacher-card-text"), playlistItemsContainer = document.getElementById("playlist-items");
+        const students = {
+            "Rohan": { bubble: document.getElementById("rohan-speech"), hand: document.getElementById("rohan-hand"), avatar: document.getElementById("student-rohan") },
+            "Ananya": { bubble: document.getElementById("ananya-speech"), hand: document.getElementById("ananya-hand"), avatar: document.getElementById("student-ananya") },
+            "Vikram": { bubble: document.getElementById("vikram-speech"), hand: document.getElementById("vikram-hand"), avatar: document.getElementById("student-vikram") },
+            "Sneha": { bubble: null, hand: null, avatar: null }, "Arjun": { bubble: null, hand: null, avatar: null }, "Pooja": { bubble: null, hand: null, avatar: null }, "Aditya": { bubble: null, hand: null, avatar: null }, "Meera": { bubble: null, hand: null, avatar: null }, "Kabir": { bubble: null, hand: null, avatar: null }, "Riya": { bubble: null, hand: null, avatar: null }
+        };
+        function init() { buildPlaylist(); setupEventListeners(); loadQuestion(0); }
+        function buildPlaylist() {
+            playlistItemsContainer.innerHTML = "";
+            questionsData.forEach((q, idx) => {
+                const btn = document.createElement("button");
+                btn.className = "playlist-item";
+                btn.innerHTML = '<span class="playlist-item-num">' + (idx + 1).toString().padStart(2, '0') + '</span><span class="playlist-item-title">' + q.topic_title + '</span>';
+                btn.addEventListener("click", () => selectQuestion(idx));
+                playlistItemsContainer.appendChild(btn);
+            });
+        }
+        function setupEventListeners() {
+            playBtn.addEventListener("click", togglePlay);
+            prevBtn.addEventListener("click", playPrev);
+            nextBtn.addEventListener("click", playNext);
+            voiceBtn.addEventListener("click", toggleVoice);
+            interactiveBtn.addEventListener("click", toggleQuizMode);
+            speedSelect.addEventListener("change", changeSpeed);
+            timelineBar.addEventListener("click", scrubTimeline);
+        }
+        function loadQuestion(idx) {
+            stopPlayback(); currentQIdx = idx; currentStepIdx = 0; userSelectAllowed = false;
+            const q = questionsData[idx]; teacherCardText.textContent = `Q${q.id}`;
+            const items = playlistItemsContainer.querySelectorAll(".playlist-item");
+            items.forEach((item, i) => {
+                if (i === idx) { item.classList.add("active"); item.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
+                else { item.classList.remove("active"); }
+            });
+            sbIntroTitle.textContent = q.topic_title;
+            sbIntroDesc.textContent = q.dialogue[0].text.split("Specifically, ")[1] || "Core theoretical analysis.";
+            sbQText.textContent = `${q.id}. ${q.question}`;
+            sbOptionsContainer.innerHTML = "";
+            q.options.forEach((opt, oIdx) => {
+                const btn = document.createElement("button");
+                btn.className = "sb-option-btn";
+                btn.innerHTML = `<span class="opt-letter">${String.fromCharCode(65 + oIdx)}</span> ${opt}`;
+                btn.addEventListener("click", () => handleOptionClick(oIdx));
+                sbOptionsContainer.appendChild(btn);
+            });
+            sbScreenIntro.classList.remove("hidden");
+            sbScreenQuestion.classList.add("hidden");
+            sbScreenFlashcard.classList.add("hidden");
+            teacherBubble.classList.add("hidden");
+            Object.keys(students).forEach(name => {
+                const s = students[name];
+                if (s && s.bubble) s.bubble.classList.add("hidden");
+                if (s && s.hand) s.hand.classList.add("hidden");
+                if (s && s.avatar) s.avatar.classList.remove("active-speaker");
+            });
+            updateTimeline();
+            statusMarquee.textContent = `Topic: ${q.topic_title}. Click Play to start.`;
+        }
+        function selectQuestion(idx) { loadQuestion(idx); if (isPlaying) playStep(0); }
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            if (isPlaying) { playBtn.textContent = "❚❚"; playStep(currentStepIdx); }
+            else { playBtn.textContent = "▶"; stopPlayback(); }
+        }
+        function stopPlayback() {
+            if (typeof speechSynthesis !== "undefined") { speechSynthesis.cancel(); }
+            if (timer) { clearTimeout(timer); }
+            teacherAvatar.classList.remove("speaking", "gesturing");
+            Object.keys(students).forEach(name => {
+                const s = students[name]; if (s && s.avatar) s.avatar.classList.remove("active-speaker");
+            });
+        }
+        function playPrev() { if (currentQIdx > 0) selectQuestion(currentQIdx - 1); }
+        function playNext() { if (currentQIdx < questionsData.length - 1) selectQuestion(currentQIdx + 1); }
+        function playStep(stepIdx) {
+            const q = questionsData[currentQIdx];
+            if (stepIdx >= q.dialogue.length) {
+                completedQuestions.add(currentQIdx);
+                if (currentQIdx < questionsData.length - 1) {
+                    setTimeout(() => { loadQuestion(currentQIdx + 1); isPlaying = true; playBtn.textContent = "❚❚"; playStep(0); }, 1500);
+                } else {
+                    isPlaying = false; playBtn.textContent = "▶"; statusMarquee.textContent = "All lectures completed!";
+                    showToast("Congratulations! All topics completed.", "success");
+                }
+                return;
+            }
+            currentStepIdx = stepIdx; updateTimeline();
+            const turn = q.dialogue[stepIdx], speaker = turn.speaker, text = turn.text, action = turn.action;
+            handleAction(action, q);
+            teacherBubble.classList.add("hidden");
+            Object.keys(students).forEach(name => {
+                const s = students[name]; if (s && s.bubble) s.bubble.classList.add("hidden");
+            });
+            if (speaker === "Teacher") { teacherBubbleText.textContent = text; teacherBubble.classList.remove("hidden"); }
+            else {
+                const s = students[speaker];
+                if (s && s.bubble) { s.bubble.querySelector("p").textContent = text; s.bubble.classList.remove("hidden"); }
+            }
+            statusMarquee.textContent = `${speaker} is explaining...`;
+            speak(text, speaker, () => {
+                if (action === "student_raise_hand") {
+                    const s = students[speaker]; if (s && s.hand) s.hand.classList.add("hidden");
+                }
+                if (isPlaying) {
+                    if (quizMode && action === "show_question" && !userSelectAllowed) {
+                        isPlaying = false; playBtn.textContent = "▶"; statusMarquee.textContent = "Your turn! Answer on the board.";
+                        userSelectAllowed = true; return;
+                    }
+                    playStep(stepIdx + 1);
+                }
+            });
+        }
+        function handleAction(action, q) {
+            sbScreenIntro.classList.add("hidden");
+            if (action.startsWith("show_card")) {
+                sbScreenQuestion.classList.add("hidden"); sbScreenFlashcard.classList.remove("hidden"); sbFlashcardSprite.classList.remove("flipped");
+                const cardIdx = parseInt(action.split("_")[2]) - 1, card = q.flashcards[cardIdx];
+                sbFcTagFront.textContent = `Card ${cardIdx + 1}`; sbFcTitleFront.textContent = card.front;
+                sbFcTagBack.textContent = `Card ${cardIdx + 1} - Explanation`; sbFcDescBack.textContent = card.back;
+            } else if (action.startsWith("flip_card")) {
+                sbScreenQuestion.classList.add("hidden"); sbScreenFlashcard.classList.remove("hidden"); sbFlashcardSprite.classList.add("flipped");
+            } else if (action === "show_question") {
+                sbScreenQuestion.classList.remove("hidden"); sbScreenFlashcard.classList.add("hidden");
+            } else if (action === "show_topic_intro") {
+                sbScreenIntro.classList.remove("hidden"); sbScreenQuestion.classList.add("hidden"); sbScreenFlashcard.classList.add("hidden");
+            } else if (action === "student_raise_hand") {
+                const speaker = q.dialogue[currentStepIdx].speaker, s = students[speaker];
+                if (s && s.hand) s.hand.classList.remove("hidden");
+            }
+        }
+        function speak(text, speaker, callback) {
+            stopPlayback();
+            if (!voiceEnabled || typeof speechSynthesis === "undefined") {
+                const words = text.split(" ").length, duration = (words / 2.5) * 1000 / playbackSpeed;
+                animateAvatar(speaker, true);
+                timer = setTimeout(() => { animateAvatar(speaker, false); if (callback) callback(); }, duration);
+                return;
+            }
+            utterance = new SpeechSynthesisUtterance(text); utterance.rate = playbackSpeed;
+            const voices = speechSynthesis.getVoices();
+            if (speaker === "Teacher") {
+                const femaleVoice = voices.find(v => v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("zira") || v.name.toLowerCase().includes("google us english"));
+                if (femaleVoice) utterance.voice = femaleVoice;
+            } else {
+                const maleVoice = voices.find(v => v.name.toLowerCase().includes("male") || v.name.toLowerCase().includes("david") || v.name.toLowerCase().includes("google uk english male"));
+                if (maleVoice) utterance.voice = maleVoice;
+            }
+            utterance.onstart = () => animateAvatar(speaker, true);
+            utterance.onend = () => { animateAvatar(speaker, false); if (callback) callback(); };
+            utterance.onerror = () => { animateAvatar(speaker, false); if (callback) callback(); };
+            speechSynthesis.speak(utterance);
+        }
+        function animateAvatar(speaker, isSpeaking) {
+            if (speaker === "Teacher") {
+                if (isSpeaking) teacherAvatar.classList.add("speaking", "gesturing");
+                else teacherAvatar.classList.remove("speaking", "gesturing");
+            } else {
+                const s = students[speaker];
+                if (s && s.avatar) {
+                    if (isSpeaking) s.avatar.classList.add("active-speaker");
+                    else s.avatar.classList.remove("active-speaker");
+                }
+            }
+        }
+        function handleOptionClick(oIdx) {
+            if (!userSelectAllowed) return;
+            userSelectAllowed = false;
+            const q = questionsData[currentQIdx], isCorrect = oIdx === q.correct_index;
+            const buttons = sbOptionsContainer.querySelectorAll(".sb-option-btn");
+            buttons[q.correct_index].classList.add("correct");
+            if (isCorrect) showToast("Correct! Great job.", "success");
+            else {
+                buttons[oIdx].style.backgroundColor = "rgba(239, 68, 68, 0.2)";
+                buttons[oIdx].style.borderColor = "#ef4444";
+                showToast("Incorrect! Let's hear the explanation.", "warning");
+            }
+            setTimeout(() => { isPlaying = true; playBtn.textContent = "❚❚"; playStep(5); }, 1500);
+        }
+        function toggleVoice() {
+            voiceEnabled = !voiceEnabled; voiceBtn.classList.toggle("active", voiceEnabled);
+            voiceBtn.textContent = voiceEnabled ? "🔊" : "🔇";
+            showToast(`Voice Narration: ${voiceEnabled ? "Enabled" : "Disabled"}`, "success");
+        }
+        function toggleQuizMode() { quizMode = !quizMode; interactiveBtn.classList.toggle("active", quizMode); showToast(`Quiz Mode: ${quizMode ? "Enabled" : "Disabled"}`, "warning"); }
+        function changeSpeed(e) { playbackSpeed = parseFloat(e.target.value); if (isPlaying) playStep(currentStepIdx); }
+        function updateTimeline() {
+            const q = questionsData[currentQIdx], percent = (currentStepIdx / (q.dialogue.length - 1)) * 100;
+            timelineFill.style.width = `${percent}%`; timelineKnob.style.left = `${percent}%`;
+            const currentSeconds = currentStepIdx * 8, totalSeconds = q.dialogue.length * 8;
+            currentTimeEl.textContent = formatTime(currentSeconds); totalTimeEl.textContent = formatTime(totalSeconds);
+        }
+        function scrubTimeline(e) {
+            const rect = timelineBar.getBoundingClientRect(), clickX = e.clientX - rect.left, width = rect.width, percent = clickX / width;
+            const q = questionsData[currentQIdx], targetStep = Math.min(q.dialogue.length - 1, Math.max(0, Math.floor(percent * q.dialogue.length)));
+            if (isPlaying) playStep(targetStep);
+            else { currentStepIdx = targetStep; updateTimeline(); handleAction(q.dialogue[targetStep].action, q); }
+        }
+        function formatTime(sec) { return `${Math.floor(sec / 60).toString().padStart(2, '0')}:${(sec % 60).toString().padStart(2, '0')}`; }
+        function showToast(msg, type = "info") {
+            const container = document.getElementById("toast-container"), toast = document.createElement("div");
+            toast.className = `toast ${type}`; toast.textContent = msg; container.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 2500);
+        }
+        window.onload = init;
+    </script>
+</body>
+</html>
+    
