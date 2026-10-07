@@ -1,0 +1,356 @@
+        /* PDF Converter Cards */
+        .message-bubble:has(.converter-card) {
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            max-width: 100% !important;
+        }
+
+        .converter-card {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+            max-width: 600px;
+            width: 100%;
+            animation: messageFade 0.3s ease-out;
+        }
+
+        .converter-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 8px;
+        }
+
+        .converter-header i {
+            font-size: 1.5rem;
+            color: var(--telegram-blue);
+        }
+
+        .converter-header h4 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .converter-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .converter-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .upload-btn-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            padding: 8px 12px;
+            border-radius: 10px;
+        }
+
+        .upload-btn-wrap .file-name {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
+        }
+
+        .converter-progress {
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .progress-bar-wrap {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--telegram-blue), #50a2e3);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-lbl {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        .converter-logs-section {
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .log-toggle-btn {
+            width: 100%;
+            background: rgba(255,255,255,0.02);
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 12px;
+            text-align: left;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .log-toggle-btn:hover {
+            background: rgba(255,255,255,0.05);
+            color: var(--text-main);
+        }
+
+        .log-body-box {
+            background: #090e14;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 0.7rem;
+            line-height: 1.4;
+            max-height: 150px;
+            overflow-y: auto;
+            color: #8fa0b0;
+            white-space: pre-wrap;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .log-body-box div {
+            margin-bottom: 2px;
+        }
+        .log-body-box .log-ok { color: var(--success); }
+        .log-body-box .log-warn { color: var(--gold); }
+        .log-body-box .log-err { color: var(--danger); }
+        .log-body-box .log-info { color: var(--telegram-blue); }
+
+        /* Real-Time Group Chat UI Styling */
+        .config-card input[type="text"], .config-card input[type="number"] {
+            width: 100%;
+            padding: 12px 16px;
+            margin-top: 6px;
+            border-radius: 10px;
+            border: 1px solid var(--glass-border);
+            background: #141f29;
+            color: white;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .config-card input[type="text"]:focus, .config-card input[type="number"]:focus {
+            border-color: var(--telegram-blue);
+            box-shadow: 0 0 0 2px rgba(36, 129, 204, 0.2);
+        }
+        .chat-message.other-user {
+            align-self: flex-start;
+            max-width: 80%;
+            animation: messageFade 0.3s ease-out;
+        }
+        .chat-message.other-user .message-bubble {
+            background: #202b36;
+            color: var(--text-main);
+            border-top-left-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .primary-btn {
+            background: linear-gradient(135deg, var(--telegram-blue), #50a2e3);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Outfit', sans-serif;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .primary-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(36, 129, 204, 0.3);
+        }
+        .primary-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Lifelines & Poll Styles */
+        .poll-bar-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .poll-bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .poll-bar-track {
+            height: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+        }
+        .poll-bar-fill {
+            height: 100%;
+            border-radius: 6px;
+            width: 0%;
+            transition: width 1s cubic-bezier(0.1, 1, 0.1, 1);
+        }
+        .lifeline-buttons button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+            background: rgba(120, 120, 120, 0.1) !important;
+            border-color: rgba(120, 120, 120, 0.2) !important;
+            color: var(--text-muted) !important;
+        }
+
+        /* ── Quiz Creator Modal Styles ── */
+        .creator-card {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 24px;
+            max-width: 550px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            text-align: left;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .creator-card::-webkit-scrollbar {
+            width: 6px;
+        }
+        .creator-card::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+        }
+        .creator-card::-webkit-scrollbar-thumb:hover {
+            background: var(--telegram-blue);
+        }
+        .creator-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .creator-field label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+        }
+        .creator-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: var(--text-main);
+            padding: 10px 14px;
+            font-size: 0.92rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .creator-input:focus {
+            border-color: var(--telegram-blue);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .creator-textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+        }
+        .creator-option-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .creator-option-correct {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--success);
+            flex-shrink: 0;
+        }
+        .creator-option-delete {
+            background: transparent;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            transition: opacity 0.2s;
+            flex-shrink: 0;
+        }
+        .creator-option-delete:hover {
+            opacity: 0.8;
+        }
+        .image-preview-area {
+            margin-top: 8px;
+            position: relative;
+            max-width: 100%;
+            height: 150px;
+            border-radius: 10px;
+            border: 1px dashed var(--glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: rgba(0,0,0,0.1);
+        }
+        .image-preview-area img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .image-preview-remove {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }

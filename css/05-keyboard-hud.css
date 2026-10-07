@@ -1,0 +1,131 @@
+        /* ── Keyboard HUD ── */
+        #kbd-hud {
+            position: fixed;
+            bottom: 90px;
+            right: 18px;
+            z-index: 200;
+            background: rgba(15, 24, 33, 0.96);
+            border: 1px solid rgba(36, 129, 204, 0.35);
+            border-radius: 16px;
+            padding: 14px 16px;
+            width: 220px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04);
+            font-family: 'Inter', sans-serif;
+            backdrop-filter: blur(12px);
+            transition: opacity 0.25s, transform 0.25s;
+            opacity: 0;
+            transform: translateY(10px) scale(0.97);
+            pointer-events: none;
+        }
+        #kbd-hud.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+        #kbd-hud .hud-title {
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--telegram-blue);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #kbd-hud .hud-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+        }
+        #kbd-hud .hud-label {
+            color: var(--text-muted);
+            font-size: 0.73rem;
+        }
+        #kbd-hud .hud-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.05);
+            margin: 8px 0;
+        }
+        .kbd-key {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-bottom: 2px solid rgba(255,255,255,0.22);
+            border-radius: 5px;
+            padding: 2px 7px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-main);
+            font-family: 'Outfit', monospace;
+            min-width: 22px;
+            text-align: center;
+            line-height: 1.5;
+            user-select: none;
+            transition: background 0.12s, transform 0.08s;
+        }
+        .kbd-key.active-press {
+            background: rgba(36, 129, 204, 0.35) !important;
+            border-color: var(--telegram-blue) !important;
+            transform: translateY(1px);
+        }
+
+        /* ── Floating toast for key-press feedback ── */
+        #kbd-toast {
+            position: fixed;
+            bottom: 155px;
+            right: 18px;
+            z-index: 210;
+            background: rgba(36, 129, 204, 0.92);
+            color: #fff;
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 20px;
+            box-shadow: 0 4px 16px rgba(36, 129, 204, 0.45);
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity 0.15s, transform 0.15s;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        #kbd-toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ── Option button key-hint badge ── */
+        .opt-key-hint {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            background: rgba(36, 129, 204, 0.18);
+            border: 1px solid rgba(36, 129, 204, 0.3);
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: var(--telegram-blue);
+            margin-right: 4px;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+        .quiz-opt-btn:hover .opt-key-hint,
+        .quiz-opt-btn.key-highlight .opt-key-hint {
+            background: rgba(36, 129, 204, 0.4);
+        }
+        .quiz-opt-btn.key-highlight {
+            border-color: var(--telegram-blue) !important;
+            background: rgba(36, 129, 204, 0.1) !important;
+            transform: translateX(6px) !important;
+        }
+
+        /* ── Sound toggle muted state ── */
+        #sound-toggle-btn.muted-state {
+            color: var(--danger) !important;
+        }
